@@ -1,0 +1,7 @@
+bitswan-gitops
+vendor/
+coverage.out
+/dist
+.envrc
+manpages/
+dist/
