@@ -4,6 +4,7 @@ Commands
 - `bitswan-gitops clone --bitswan-dir=<bitswan-dir> <repo> <dest>`
 - `bitswan-gitops start-ide <deployment-id>`
 - `bitswan-gitops pull`
+- `bitswan-gitops admin-connect`
 
 clone
 ------
@@ -48,3 +49,7 @@ pull
 
 Pull any changes from the remote to the production git repository and critically, also rebuild and redeploy any pipelines/IDEs that are effected by the changes.
 
+admin-connect
+----------------
+
+Connect to the bitswan.space SaaS service to view and manage your pipelines.

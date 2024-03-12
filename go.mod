@@ -1,14 +1,18 @@
 module github.com/bitswan-space/bitswan-gitops
 
-go 1.19
+go 1.21
+
+toolchain go1.22.1
 
 require (
 	github.com/daixiang0/gci v0.12.1
+	github.com/dchest/uniuri v1.2.0
 	github.com/go-critic/go-critic v0.11.0
 	github.com/golangci/golangci-lint v1.56.1
 	github.com/gotesttools/gotestfmt/v2 v2.5.0
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
+	github.com/otiai10/copy v1.14.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
@@ -124,7 +128,6 @@ require (
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/nakabonne/nestif v0.3.1 // indirect
-	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nishanths/exhaustive v0.12.0 // indirect
 	github.com/nishanths/predeclared v0.2.2 // indirect
 	github.com/nunnatsa/ginkgolinter v0.15.2 // indirect
@@ -190,7 +193,7 @@ require (
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

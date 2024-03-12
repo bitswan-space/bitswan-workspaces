@@ -9,14 +9,13 @@ import (
 func newRootCmd(version string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bitswan-gitops",
-		Short: "golang-cli project template demo application",
+		Short: "Deploy your pipelines to a CRE with bitswan-gitops",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
 	}
 
 	cmd.AddCommand(newVersionCmd(version)) // version subcommand
-	cmd.AddCommand(newExampleCmd())        // example subcommand
 	cmd.AddCommand(newCloneCmd())
 
 	return cmd
