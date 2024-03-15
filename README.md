@@ -28,6 +28,20 @@ CLI app for managing bitswan-gitops deployments
 - Automatically set up independent bitswan-gitops deployments.
 - Deployments can either connect to the bitswan.space SaaS, use the on prem bitswan management tools or operate completely independently
 
+# Setting up and connecting a gitops instance
+
+1. Setup your account on bitswan.space
+
+2. Add a gitops instance
+
+3. Fork https://github.com/bitswan-space/bitwan-gitops-template
+
+4. Clone your fork and input your gitops token
+
+```sh
+bitswan-gitops clone https://github.com/<your-account>/bitwan-pipelines.git dest-dir
+```
+
 # Makefile Targets
 ```sh
 $> make
