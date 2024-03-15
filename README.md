@@ -42,6 +42,8 @@ CLI app for managing bitswan-gitops deployments
 bitswan-gitops clone https://github.com/<your-account>/bitwan-pipelines.git dest-dir
 ```
 
+5. View & edit your running pipelines on bitswan.space
+
 # Makefile Targets
 ```sh
 $> make
