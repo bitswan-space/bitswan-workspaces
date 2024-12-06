@@ -99,12 +99,13 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 				"networks": []string{"bitswan_network"},
 				"environment": []string{
 					"BITSWAN_DEPLOY_URL=http://gitops:8079",
-					"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken, // TODO: change this for secret which is used in gitops
+					"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken,
 					"BITSWAN_GITOPS_DIR=/home/coder/workspace",
 				},
 				"volumes": []string{
 					gitopsPath + "/workspace:/home/coder/workspace/workspace",
 					gitopsPath + "/secrets:/home/coder/workspace/secrets",
+					sshDir + ":/home/coder/.ssh",
 					"bitswan-editor-data:/home/coder",
 				},
 			},
