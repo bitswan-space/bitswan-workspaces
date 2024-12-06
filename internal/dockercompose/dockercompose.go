@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/dchest/uniuri"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,7 +17,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, latestGitopsVersion, latestBitswanEditorVersion, certsPath string) (string, error) {
+func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath string) (string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -32,6 +33,9 @@ func CreateDockerComposeFile(gitopsPath, latestGitopsVersion, latestBitswanEdito
 		return "", fmt.Errorf("unsupported host OS: %s", hostOsTmp)
 	}
 
+	// generate a random secret token
+	gitopsSecretToken := uniuri.NewLen(64)
+
 	gitopsService := map[string]interface{}{
 		"image": "bitswan/gitops:" + latestGitopsVersion,
 		"restart": "always",
@@ -45,6 +49,8 @@ func CreateDockerComposeFile(gitopsPath, latestGitopsVersion, latestBitswanEdito
 		"environment": []string{
 			"BS_BITSWAN_DIR=/repo",
 			"BS_HOST_DIR=" + gitopsPath + "/gitops",
+			"BS_GITOPS_ID=" + gitopsName,
+			"BS_GITOPS_SECRET=" + gitopsSecretToken,
 		},
 	}
 
@@ -93,7 +99,7 @@ func CreateDockerComposeFile(gitopsPath, latestGitopsVersion, latestBitswanEdito
 				"networks": []string{"bitswan_network"},
 				"environment": []string{
 					"BITSWAN_DEPLOY_URL=http://gitops:8079",
-					"BITSWAN_DEPLOY_SECRET=secret", // TODO: change this for secret which is used in gitops
+					"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken, // TODO: change this for secret which is used in gitops
 					"BITSWAN_GITOPS_DIR=/home/coder/workspace",
 				},
 				"volumes": []string{

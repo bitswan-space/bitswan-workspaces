@@ -98,19 +98,21 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create GitOps worktree: %w", err)
 	}
 
-	// Create empty commit
-	emptyCommitCom := exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
-	emptyCommitCom.Dir = gitopsWorktree
-	if err := emptyCommitCom.Run(); err != nil {
-		return fmt.Errorf("failed to create empty commit: %w", err)
-	}
+	if o.remoteRepo != "" {
+		// Create empty commit
+		emptyCommitCom := exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
+		emptyCommitCom.Dir = gitopsWorktree
+		if err := emptyCommitCom.Run(); err != nil {
+			return fmt.Errorf("failed to create empty commit: %w", err)
+		}
 
-	// Push to remote
-	setUpstreamCom := exec.Command("git", "push", "-u", "origin", gitopsName)
-	setUpstreamCom.Dir = gitopsWorktree
-	if err := setUpstreamCom.Run(); err != nil {
-		return fmt.Errorf("failed to set upstream: %w", err)
-	}
+		// Push to remote
+		setUpstreamCom := exec.Command("git", "push", "-u", "origin", gitopsName)
+		setUpstreamCom.Dir = gitopsWorktree
+		if err := setUpstreamCom.Run(); err != nil {
+			return fmt.Errorf("failed to set upstream: %w", err)
+		}
+	}	
 
 	fmt.Println("GitOps worktree set up successfully!")
 
@@ -141,7 +143,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	var caddyfile string
 	
-	if o.certsDir == "" {
+	if o.certsDir != "" {
 		caddyfile = fmt.Sprintf(`
 		gitops.%s {
 			reverse_proxy gitops:8079
@@ -171,6 +173,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	compose, err := dockercompose.CreateDockerComposeFile(
 		gitopsConfig,
+		gitopsName,
 		gitopsLatestVersion,
 		bitswanEditorLatestVersion,
 		o.certsDir,
@@ -191,7 +194,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("GitOps deployment set up successfully!")
 
-	dockerComposeCom := exec.Command("docker-compose", "-p", gitopsName, "up", "-d")
+	projectName := gitopsName + "-site"
+	dockerComposeCom := exec.Command("docker-compose", "-p", projectName, "up", "-d")
 
 	fmt.Println("Starting BitSwan GitOps...")
 	if err := dockerComposeCom.Run(); err != nil {
