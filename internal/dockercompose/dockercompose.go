@@ -79,26 +79,17 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 		gitopsService["environment"] = append(gitopsService["environment"].([]string), gitopsEnvVars...)
 	}
 
-	caddyVolumes := []string{
-		gitopsPath + "/deployment/caddy/Caddyfile:/etc/caddy/Caddyfile",
-		gitopsPath + "/deployment/caddy/data:/data",
-		gitopsPath + "/deployment/caddy/config:/config",
-	}
-	if certsPath != "" {
-		caddyVolumes = append(caddyVolumes, certsPath + ":/tls")
-	}
-
 	// Construct the docker-compose data structure
 	dockerCompose := map[string]interface{}{
 		"version": "3.8",
 		"services": map[string]interface{}{
-			"gitops": gitopsService,
-			"bitswan-editor": map[string]interface{}{
+			fmt.Sprintf("%s", gitopsName): gitopsService,
+			fmt.Sprintf("bitswan-editor-%s", gitopsName): map[string]interface{}{
 				"image": "bitswan/bitswan-editor:" + latestBitswanEditorVersion,
 				"restart": "always",
 				"networks": []string{"bitswan_network"},
 				"environment": []string{
-					"BITSWAN_DEPLOY_URL=http://gitops:8079",
+					"BITSWAN_DEPLOY_URL=" + fmt.Sprintf("http://%s:8079", gitopsName),
 					"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken,
 					"BITSWAN_GITOPS_DIR=/home/coder/workspace",
 				},
@@ -109,16 +100,50 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 					"bitswan-editor-data:/home/coder",
 				},
 			},
-			"caddy": map[string]interface{}{
-				"image": "caddy:2.9",
-				"restart": "always",
-				"ports": []string{"80:80", "443:443"},
-				"networks": []string{"bitswan_network"},
-				"volumes": caddyVolumes,
-			},
 		},
 		"volumes": map[string]interface{}{
 			"bitswan-editor-data": nil,
+		},
+		"networks": map[string]interface{}{
+			"bitswan_network": map[string]interface{}{
+				"external": true,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+
+	// Serialize the docker-compose data structure to YAML and write it to the file
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2) // Optional: Set indentation
+	if err := encoder.Encode(dockerCompose); err != nil {
+		return "", fmt.Errorf("failed to encode docker-compose data structure: %w", err) 
+	}
+
+	return buf.String(), nil
+}
+
+func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, error) {
+	caddyVolumes := []string{
+		caddyPath + "/Caddyfile:/etc/caddy/Caddyfile",
+		caddyPath + "/data:/data",
+		caddyPath + "/config:/config",
+		caddyPath + "/certs:/tls",
+	}
+
+	// Construct the docker-compose data structure
+	dockerCompose := map[string]interface{}{
+		"version": "3.8",
+		"services": map[string]interface{}{
+			"caddy": map[string]interface{}{
+				"image": "caddy:2.9",
+				"restart": "always",
+				"container_name": "caddy",
+				"ports": []string{"80:80", "443:443", "2019:2019"},
+				"networks": []string{"bitswan_network"},
+				"volumes": caddyVolumes,
+				"entrypoint": []string{"caddy", "run", "--resume", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"},
+			},
 		},
 		"networks": map[string]interface{}{
 			"bitswan_network": map[string]interface{}{
