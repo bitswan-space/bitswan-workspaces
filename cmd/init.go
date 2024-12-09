@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
+	"github.com/bitswan-space/bitswan-gitops/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops/internal/dockercompose"
 	"github.com/bitswan-space/bitswan-gitops/internal/dockerhub"
 	"github.com/spf13/cobra"
@@ -46,15 +48,104 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to create BitSwan config directory: %w", err)
 		}
 	}
+
+	// Init shared Caddy if not exists
+	caddyConfig := bitswanConfig + "caddy"
+	if _, err := os.Stat(caddyConfig); os.IsNotExist(err) {
+		fmt.Println("Setting up Caddy...")
+		if err := os.MkdirAll(caddyConfig, 0755); err != nil {
+			return fmt.Errorf("failed to create Caddy config directory: %w", err)
+		}
+
+		// Create Caddyfile with email and modify admin listener
+		caddyfile := `
+		{
+			email info@bitswan.space
+			admin 0.0.0.0:2019
+		}`
+
+		caddyfilePath := caddyConfig + "/Caddyfile"
+		if err := os.WriteFile(caddyfilePath, []byte(caddyfile), 0644); err != nil {
+			return fmt.Errorf("failed to write Caddyfile: %w", err)
+		}
+
+
+		caddyDockerCompose, err := dockercompose.CreateCaddyDockerComposeFile(caddyConfig, o.certsDir, o.domain)
+		if err != nil {
+			return fmt.Errorf("failed to create Caddy docker-compose file: %w", err)
+		}
+
+		caddyDockerComposePath := caddyConfig + "/docker-compose.yml"
+		if err := os.WriteFile(caddyDockerComposePath, []byte(caddyDockerCompose), 0644); err != nil {
+			return fmt.Errorf("failed to write Caddy docker-compose file: %w", err)
+		}
+
+		err = os.Chdir(caddyConfig)
+		if err != nil {
+			return fmt.Errorf("failed to change directory to Caddy config: %w", err)
+		}
+
+		caddyProjectName := "bitswan-caddy"
+		caddyDockerComposeCom := exec.Command("docker-compose", "-p", caddyProjectName, "up", "-d")
+
+		fmt.Println("Starting Caddy...")
+		if err := caddyDockerComposeCom.Run(); err != nil {
+			return fmt.Errorf("failed to start Caddy: %w", err)
+		}
+
+		// wait 5s to make sure Caddy is up
+		time.Sleep(5 * time.Second)
+		err = caddyapi.InitCaddy()
+		if err != nil {
+			return fmt.Errorf("failed to init Caddy: %w", err)
+		}
+
+		fmt.Println("Caddy started successfully!")
+	}
 	
+	if o.certsDir != "" {
+		caddyCertsDir := caddyConfig + "/certs"
+		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(caddyCertsDir, 0755); err != nil {
+				return fmt.Errorf("failed to create Caddy certs directory: %w", err)
+			}
+		}
+
+		certsDir := caddyCertsDir + "/" + o.domain
+		if _, err := os.Stat(certsDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(certsDir, 0755); err != nil {
+				return fmt.Errorf("failed to create certs directory: %w", err)
+			}
+		}
+
+		certs, err := os.ReadDir(o.certsDir)
+		if err != nil {
+			return fmt.Errorf("failed to read certs directory: %w", err)
+		}
+
+		for _, cert := range certs {
+			if cert.IsDir() {
+				continue
+			}
+
+			certPath := o.certsDir + "/" + cert.Name()
+			newCertPath := certsDir + "/" + cert.Name()
+
+			if err := os.Rename(certPath, newCertPath); err != nil {
+				return fmt.Errorf("failed to move cert: %w", err)
+			}
+		}	
+
+		fmt.Println("Certs copied successfully!")
+	}
+	
+	// GitOps name
 	gitopsName := "gitops"
 	if len(args) == 1 {
 		gitopsName = args[0]
 	}
 
 	gitopsConfig := bitswanConfig + gitopsName
-
-
 	if _, err := os.Stat(gitopsConfig); !os.IsNotExist(err) {
 		return fmt.Errorf("GitOps with this name was already initialized: %s", gitopsName)
 	}
@@ -116,7 +207,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("GitOps worktree set up successfully!")
 
-
 	gitopsLatestVersion, err := dockerhub.GetLatestBitswanGitopsVersion()
 	if err != nil {
 		return fmt.Errorf("failed to get latest BitSwan GitOps version: %w", err)
@@ -141,34 +231,9 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to create deployment directory: %w", err)
 	}
 
-	var caddyfile string
-	
-	if o.certsDir != "" {
-		caddyfile = fmt.Sprintf(`
-		gitops.%s {
-			reverse_proxy gitops:8079
-			tls /tls/full-chain.pem /tls/private-key.pem
-		}
-		editor.%s {
-			reverse_proxy bitswan-editor:8080
-			tls /tls/full-chain.pem /tls/private-key.pem
-		}`, o.domain, o.domain)
-	} else {
-		caddyfile = fmt.Sprintf(`
-		gitops.%s {
-			reverse_proxy gitops:8079
-		}
-		editor.%s {
-			reverse_proxy bitswan-editor:8080
-		}`, o.domain, o.domain)
-		}
-	
-	if err := os.MkdirAll(gitopsDeployment + "/caddy", 0755); err != nil {
-		return fmt.Errorf("Failed to create Caddy data directory: %w", err)
-	}
-	caddyfilePath := gitopsDeployment + "/caddy/Caddyfile"
-	if err := os.WriteFile(caddyfilePath, []byte(caddyfile), 0644); err != nil {
-		return fmt.Errorf("Failed to write Caddyfile: %w", err)
+	err = caddyapi.AddCaddyRecords(gitopsName, o.domain, o.certsDir != "")
+	if err != nil {
+		return fmt.Errorf("Failed to add Caddy records: %w", err)
 	}
 
 	compose, err := dockercompose.CreateDockerComposeFile(
