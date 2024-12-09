@@ -131,8 +131,13 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			certPath := o.certsDir + "/" + cert.Name()
 			newCertPath := certsDir + "/" + cert.Name()
 
-			if err := os.Rename(certPath, newCertPath); err != nil {
-				return fmt.Errorf("failed to move cert: %w", err)
+			bytes, err := os.ReadFile(certPath)
+			if err != nil {
+				return fmt.Errorf("failed to read cert file: %w", err)
+			}
+
+			if err := os.WriteFile(newCertPath, bytes, 0644); err != nil {
+				return fmt.Errorf("failed to copy cert file: %w", err)
 			}
 		}	
 
