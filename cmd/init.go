@@ -212,12 +212,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("GitOps worktree set up successfully!")
 
-	gitopsLatestVersion, err := dockerhub.GetLatestBitswanGitopsVersion()
+	gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
 	if err != nil {
 		return fmt.Errorf("failed to get latest BitSwan GitOps version: %w", err)
 	}
 
-	bitswanEditorLatestVersion, err := dockerhub.GetLatestBitswanEditorVersion()
+	bitswanEditorLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/bitswan-editor/tags/")
 	if err != nil {
 		return fmt.Errorf("failed to get latest BitSwan Editor version: %w", err)
 	}
