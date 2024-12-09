@@ -29,20 +29,31 @@ CLI app for managing bitswan-gitops deployments
 - Deployments can either connect to the bitswan.space SaaS, use the on prem bitswan management tools or operate completely independently
 
 # Setting up and connecting a gitops instance
-
-1. Setup your account on bitswan.space
-
-2. Add a gitops instance
-
-3. Fork https://github.com/bitswan-space/bitwan-gitops-template
-
-4. Clone your fork and input your gitops token
-
+## SaaS
 ```sh
-bitswan-gitops clone https://github.com/<your-account>/bitwan-pipelines.git dest-dir
+bitswan-gitops init my-gitops
 ```
 
-5. View & edit your running pipelines on bitswan.space
+## On-prem
+### With public domain
+```sh
+bitswan-gitops init --domain=my-gitops.bitswan.io my-gitops
+```
+### With internal domain
+> Note:
+>
+> Before you initialize gitops with internal domain, make sure you have generated certificate for sub domain of gitops instance, e.g. `*.my-gitops.my-domain.local`. You have to specify path to the certificate and private key in `init` command. Certificate and private key must be in a format `full-chain.pem` and `private-key.pem`.
+
+```sh
+bitswan-gitops init --domain=my-gitops.my-domain.local --certs-dir=/etc/certs my-gitops
+```
+
+## Remote git repository
+If you wanna connect and persist your pipelines and GitOps configuration in remote git repository you can use `--remote` flag to specify your repository. `main` branch will be used to store pipelines code and each GitOps will create it's own branch (e.g. `my-gitops`) to store their configurations.
+
+```sh
+bitswan-gitops --remote=git@github.com:<your-name>/<your-repo>.git my-gitops
+```
 
 # Makefile Targets
 ```sh
