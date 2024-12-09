@@ -86,7 +86,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		caddyProjectName := "bitswan-caddy"
-		caddyDockerComposeCom := exec.Command("docker-compose", "-p", caddyProjectName, "up", "-d")
+		caddyDockerComposeCom := exec.Command("docker", "compose", "-p", caddyProjectName, "up", "-d")
 
 		fmt.Println("Starting Caddy...")
 		if err := caddyDockerComposeCom.Run(); err != nil {
@@ -265,7 +265,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Println("GitOps deployment set up successfully!")
 
 	projectName := gitopsName + "-site"
-	dockerComposeCom := exec.Command("docker-compose", "-p", projectName, "up", "-d")
+	dockerComposeCom := exec.Command("docker", "compose", "-p", projectName, "up", "-d")
 
 	fmt.Println("Starting BitSwan GitOps...")
 	if err := dockerComposeCom.Run(); err != nil {
