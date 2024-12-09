@@ -19,8 +19,8 @@ type Match struct {
 
 type Handle struct {
 	Handler string		`json:"handler"`
-	Routes   []Route	`json:"routes"`
-	Upstreams []Upstream`json:"upstreams"`
+	Routes   []Route	`json:"routes,omitempty"`
+	Upstreams []Upstream`json:"upstreams,omitempty"`
 }
 
 type Upstream struct {
@@ -71,16 +71,30 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 
 	// Bitswan editor route
 	routes = append(routes, Route{
-		Match: []Match{Match{Host: []string{fmt.Sprintf("editor.%s", domain)}}},
-		Handle: []Handle{Handle{Handler: "subroute", Routes: []Route{
-			Route{
-				Handle: []Handle{Handle{Handler: "reverse_proxy", Upstreams: []Upstream{
-					{Dial: fmt.Sprintf("bitswan-editor-%s:8080", gitopsName)},
-				}}},
-
+		Match: []Match{
+			Match{
+				Host: []string{fmt.Sprintf("editor.%s", domain)},
 			},
-		}}},
-
+		},
+		Handle: []Handle{
+			Handle{
+				Handler: "subroute",
+				Routes: []Route{
+					Route{
+						Handle: []Handle{
+							Handle{
+								Handler: "reverse_proxy",
+								Upstreams: []Upstream{
+									{
+										Dial: fmt.Sprintf("bitswan-editor-%s:8080", gitopsName),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		Terminal: true,
 	})
 
