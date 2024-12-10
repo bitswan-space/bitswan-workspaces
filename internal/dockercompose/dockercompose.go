@@ -3,6 +3,7 @@ package dockercompose
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 
@@ -37,8 +38,8 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	gitopsSecretToken := uniuri.NewLen(64)
 
 	gitopsService := map[string]interface{}{
-		"image": "bitswan/gitops:" + latestGitopsVersion,
-		"restart": "always",
+		"image":    "bitswan/gitops:" + latestGitopsVersion,
+		"restart":  "always",
 		"networks": []string{"bitswan_network"},
 		"volumes": []string{
 			gitopsPath + "/gitops:/gitops/gitops",
@@ -65,13 +66,13 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 
 		// Rewrite .git in worktree because it's calling git command inside the container (only for Windows and Mac)
 		gitdir := "gitdir: /workspace-repo/.git/worktrees/gitops"
-		if err := os.WriteFile(gitopsPath + "/gitops/.git", []byte(gitdir), 0644); err != nil {
+		if err := os.WriteFile(gitopsPath+"/gitops/.git", []byte(gitdir), 0644); err != nil {
 			return "", fmt.Errorf("failed to rewrite gitops worktree .git file: %w", err)
 		}
 	} else if hostOs == Linux {
 		gitopsService["privileged"] = true
 		gitopsService["pid"] = "host"
-		
+
 		gitopsEnvVars := []string{
 			"HOST_PATH=$PATH",
 			"HOST_HOME=$HOME",
@@ -84,13 +85,13 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	dockerCompose := map[string]interface{}{
 		"version": "3.8",
 		"services": map[string]interface{}{
-			fmt.Sprintf("%s", gitopsName): gitopsService,
+			gitopsName: gitopsService,
 			fmt.Sprintf("bitswan-editor-%s", gitopsName): map[string]interface{}{
-				"image": "bitswan/bitswan-editor:" + latestBitswanEditorVersion,
-				"restart": "always",
+				"image":    "bitswan/bitswan-editor:" + latestBitswanEditorVersion,
+				"restart":  "always",
 				"networks": []string{"bitswan_network"},
 				"environment": []string{
-					"BITSWAN_DEPLOY_URL=" + fmt.Sprintf("http://%s:8079", gitopsName),
+					"BITSWAN_DEPLOY_URL=" + fmt.Sprintf("http://%s", net.JoinHostPort(gitopsName, "8079")),
 					"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken,
 					"BITSWAN_GITOPS_DIR=/home/coder/workspace",
 				},
@@ -118,7 +119,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	encoder := yaml.NewEncoder(&buf)
 	encoder.SetIndent(2) // Optional: Set indentation
 	if err := encoder.Encode(dockerCompose); err != nil {
-		return "", fmt.Errorf("failed to encode docker-compose data structure: %w", err) 
+		return "", fmt.Errorf("failed to encode docker-compose data structure: %w", err)
 	}
 
 	return buf.String(), nil
@@ -137,13 +138,13 @@ func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, 
 		"version": "3.8",
 		"services": map[string]interface{}{
 			"caddy": map[string]interface{}{
-				"image": "caddy:2.9",
-				"restart": "always",
+				"image":          "caddy:2.9",
+				"restart":        "always",
 				"container_name": "caddy",
-				"ports": []string{"80:80", "443:443", "2019:2019"},
-				"networks": []string{"bitswan_network"},
-				"volumes": caddyVolumes,
-				"entrypoint": []string{"caddy", "run", "--resume", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"},
+				"ports":          []string{"80:80", "443:443", "2019:2019"},
+				"networks":       []string{"bitswan_network"},
+				"volumes":        caddyVolumes,
+				"entrypoint":     []string{"caddy", "run", "--resume", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"},
 			},
 		},
 		"networks": map[string]interface{}{
@@ -159,7 +160,7 @@ func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, 
 	encoder := yaml.NewEncoder(&buf)
 	encoder.SetIndent(2) // Optional: Set indentation
 	if err := encoder.Encode(dockerCompose); err != nil {
-		return "", fmt.Errorf("failed to encode docker-compose data structure: %w", err) 
+		return "", fmt.Errorf("failed to encode docker-compose data structure: %w", err)
 	}
 
 	return buf.String(), nil
