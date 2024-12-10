@@ -247,6 +247,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		gitopsLatestVersion,
 		bitswanEditorLatestVersion,
 		o.certsDir,
+		o.domain,
 	)
 	if err != nil {
 		return fmt.Errorf("Failed to create docker-compose file: %w", err)

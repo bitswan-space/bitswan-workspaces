@@ -17,7 +17,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath string) (string, error) {
+func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath, domain string) (string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -41,16 +41,17 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 		"restart": "always",
 		"networks": []string{"bitswan_network"},
 		"volumes": []string{
-			gitopsPath + "/gitops:/home/root/.config/bitswan/gitops",
-			gitopsPath + "/secrets:/home/root/.config/bitswan/secrets",
+			gitopsPath + "/gitops:/gitops/gitops",
+			gitopsPath + "/secrets:/gitops/secrets",
 			sshDir + ":/root/.ssh",
 			"/var/run/docker.sock:/var/run/docker.sock",
 		},
 		"environment": []string{
-			"BITSWAN_GITOPS_DIR=/home/root/.config/bitswan",
+			"BITSWAN_GITOPS_DIR=/gitops",
 			"BITSWAN_GITOPS_DIR_HOST=" + gitopsPath,
 			"BITSWAN_GITOPS_ID=" + gitopsName,
 			"BITSWAN_GITOPS_SECRET=" + gitopsSecretToken,
+			"BITSWAN_GITOPS_DOMAIN=" + domain,
 		},
 	}
 
