@@ -41,16 +41,16 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 		"restart": "always",
 		"networks": []string{"bitswan_network"},
 		"volumes": []string{
-			"/etc/bitswan-secrets/:/etc/bitswan-secrets/", // TODO: change this to gitops secrets
-			gitopsPath + "/gitops" + ":/repo/",
+			gitopsPath + "/gitops:/home/root/.config/bitswan/gitops",
+			gitopsPath + "/secrets:/home/root/.config/bitswan/secrets",
 			sshDir + ":/root/.ssh",
 			"/var/run/docker.sock:/var/run/docker.sock",
 		},
 		"environment": []string{
-			"BS_BITSWAN_DIR=/repo",
-			"BS_HOST_DIR=" + gitopsPath + "/gitops",
-			"BS_GITOPS_ID=" + gitopsName,
-			"BS_GITOPS_SECRET=" + gitopsSecretToken,
+			"BITSWAN_GITOPS_DIR=/home/root/.config/bitswan",
+			"BITSWAN_GITOPS_DIR_HOST=" + gitopsPath,
+			"BITSWAN_GITOPS_ID=" + gitopsName,
+			"BITSWAN_GITOPS_SECRET=" + gitopsSecretToken,
 		},
 	}
 
