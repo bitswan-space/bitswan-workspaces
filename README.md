@@ -17,16 +17,37 @@ CLI app for managing bitswan-gitops deployments
 <!--ts-->
    * [bitswan-gitops](#bitswan-gitops)
    * [Features](#features)
-   * [Makefile Targets](#makefile-targets)
    * [Contribute](#contribute)
-
-<!-- Added by: morelly_t1, at: Tue 10 Aug 2021 08:54:24 AM CEST -->
 
 <!--te-->
 
 # Features
 - Automatically set up independent bitswan-gitops deployments.
 - Deployments can either connect to the bitswan.space SaaS, use the on prem bitswan management tools or operate completely independently
+
+
+# Installation
+
+```
+# Download and extract the binary in one command
+curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/download/0.1.4/bitswan-gitops-cli_Linux_x86_64.tar.gz | tar -xz
+```
+
+Move the binary to a directory in your PATH
+
+```
+sudo mv bitswan-gitops-cli /usr/local/bin/
+```
+
+Alternatively, if you don't have sudo access or prefer a local installation:
+
+```
+mkdir -p ~/bin
+mv bitswan-gitops-cli ~/bin/
+
+#Add to PATH if using ~/bin (add this to your ~/.bashrc or ~/.zshrc)
+export PATH="$HOME/bin:$PATH"
+```
 
 # Setting up and connecting a gitops instance
 ## SaaS
@@ -53,23 +74,6 @@ If you wanna connect and persist your pipelines and GitOps configuration in remo
 
 ```sh
 bitswan-gitops --remote=git@github.com:<your-name>/<your-repo>.git my-gitops
-```
-
-# Makefile Targets
-```sh
-$> make
-bootstrap                      install build deps
-build                          build golang binary
-clean                          clean up environment
-cover                          display test coverage
-docker-build                   dockerize golang application
-fmt                            format go files
-help                           list makefile targets
-install                        install golang binary
-lint                           lint go files
-pre-commit                     run pre-commit hooks
-run                            run the app
-test                           display test coverage
 ```
 
 # Contribute
