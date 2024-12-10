@@ -3,20 +3,19 @@ package dockerhub
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 )
 
-func GetLatestBitswanGitopsVersion() (string, error) {
+func GetLatestDockerHubVersion(url string) (string, error) {
 	// Get the latest version of the bitswan-gitops image by looking it up on dockerhub
-	getLatestVersionUrl := "https://hub.docker.com/v2/repositories/bitswan/pipeline-runtime-environment/tags/"
-	resp, err := http.Get(getLatestVersionUrl)
+	resp, err := http.Get(url) //nolint:gosec
 	if err != nil {
 		return "latest", err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "latest", err
 	}
@@ -27,9 +26,12 @@ func GetLatestBitswanGitopsVersion() (string, error) {
 	}
 	results := data["results"].([]interface{})
 	pattern := `^\d{4}-\d+-git-[a-fA-F0-9]+$`
+	// Compile the regex pattern once, before the loop
+	re := regexp.MustCompile(pattern)
+
 	for _, result := range results {
 		tag := result.(map[string]interface{})["name"].(string)
-		if match, _ := regexp.MatchString(pattern, tag); match {
+		if re.MatchString(tag) {
 			return tag, nil
 		}
 	}
