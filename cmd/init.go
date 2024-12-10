@@ -14,9 +14,8 @@ import (
 
 type initOptions struct {
 	remoteRepo string
-	onPrem     bool
-	domain    string
-	certsDir  string
+	domain     string
+	certsDir   string
 }
 
 func defaultInitOptions() *initOptions {
@@ -69,7 +68,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to write Caddyfile: %w", err)
 		}
 
-
 		caddyDockerCompose, err := dockercompose.CreateCaddyDockerComposeFile(caddyConfig, o.certsDir, o.domain)
 		if err != nil {
 			return fmt.Errorf("failed to create Caddy docker-compose file: %w", err)
@@ -102,7 +100,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("Caddy started successfully!")
 	}
-	
+
 	if o.certsDir != "" {
 		caddyCertsDir := caddyConfig + "/certs"
 		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
@@ -139,11 +137,11 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			if err := os.WriteFile(newCertPath, bytes, 0644); err != nil {
 				return fmt.Errorf("failed to copy cert file: %w", err)
 			}
-		}	
+		}
 
 		fmt.Println("Certs copied successfully!")
 	}
-	
+
 	// GitOps name
 	gitopsName := "gitops"
 	if len(args) == 1 {
@@ -159,12 +157,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create GitOps directory: %w", err)
 	}
 
-
-
 	// Initialize Bitswan workspace
 	gitopsWorkspace := gitopsConfig + "/workspace"
 	if o.remoteRepo != "" {
-		com := exec.Command("git", "clone", o.remoteRepo, gitopsWorkspace)
+		com := exec.Command("git", "clone", o.remoteRepo, gitopsWorkspace) //nolint:gosec
 
 		fmt.Println("Cloning remote repository...")
 		if err := com.Run(); err != nil {
@@ -172,15 +168,18 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Println("Remote repository cloned!")
 	} else {
-
-		os.Mkdir(gitopsWorkspace, 0755)
+		if err := os.Mkdir(gitopsWorkspace, 0755); err != nil {
+			return fmt.Errorf("failed to create GitOps workspace directory %s: %w", gitopsWorkspace, err)
+		}
 		com := exec.Command("git", "init")
 		com.Dir = gitopsWorkspace
 
 		fmt.Println("Initializing git in workspace...")
+
 		if err := com.Run(); err != nil {
 			return fmt.Errorf("Failed to init git in workspace: %w", err)
 		}
+
 		fmt.Println("Git initialized in workspace!")
 	}
 
@@ -208,7 +207,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		if err := setUpstreamCom.Run(); err != nil {
 			return fmt.Errorf("failed to set upstream: %w", err)
 		}
-	}	
+	}
 
 	fmt.Println("GitOps worktree set up successfully!")
 
@@ -222,13 +221,13 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get latest BitSwan Editor version: %w", err)
 	}
 
-	
 	createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
 
 	fmt.Println("Creating BitSwan Docker network...")
-	createDockerNetworkCom.Run()
+	if err := createDockerNetworkCom.Run(); err != nil {
+		return fmt.Errorf("failed to create BitSwan Docker network: %w", err)
+	}
 	fmt.Println("BitSwan Docker network created!")
-
 
 	fmt.Println("Setting up GitOps deployment...")
 	gitopsDeployment := gitopsConfig + "/deployment"

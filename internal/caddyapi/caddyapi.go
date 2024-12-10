@@ -8,45 +8,43 @@ import (
 )
 
 type Route struct {
-	Match    []Match	`json:"match"`
-	Handle   []Handle	`json:"handle"`
-	Terminal bool		`json:"terminal"`
+	Match    []Match  `json:"match"`
+	Handle   []Handle `json:"handle"`
+	Terminal bool     `json:"terminal"`
 }
 
 type Match struct {
-	Host []string 		`json:"host"`
+	Host []string `json:"host"`
 }
 
 type Handle struct {
-	Handler string		`json:"handler"`
-	Routes   []Route	`json:"routes,omitempty"`
-	Upstreams []Upstream`json:"upstreams,omitempty"`
+	Handler   string     `json:"handler"`
+	Routes    []Route    `json:"routes,omitempty"`
+	Upstreams []Upstream `json:"upstreams,omitempty"`
 }
 
 type Upstream struct {
-	Dial string 		`json:"dial"`
+	Dial string `json:"dial"`
 }
 
 type TLSPolicy struct {
-	Match TLSMatch 		`json:"match"`
+	Match                TLSMatch                `json:"match"`
 	CertificateSelection TLSCertificateSelection `json:"certificate_selection"`
 }
 
 type TLSMatch struct {
-	SNI []string 		`json:"sni"`
+	SNI []string `json:"sni"`
 }
 
 type TLSCertificateSelection struct {
-	AnyTag []string 	`json:"any_tag"`
+	AnyTag []string `json:"any_tag"`
 }
 
 type TLSFileLoad struct {
-	Certificate string 	`json:"certificate"`
-	Key string 			`json:"key"`
-	Tags []string 		`json:"tags"`
+	Certificate string   `json:"certificate"`
+	Key         string   `json:"key"`
+	Tags        []string `json:"tags"`
 }
-
-
 
 // TODO: we should think about how to handle the case when use would like to deploy GitOps on server where Caddy is already running
 func AddCaddyRecords(gitopsName, domain string, certs bool) error {
@@ -58,10 +56,10 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 
 	// GitOps route
 	routes = append(routes, Route{
-		Match: []Match{Match{Host: []string{domain}}},
-		Handle: []Handle{Handle{Handler: "subroute", Routes: []Route{
-			Route{
-				Handle: []Handle{Handle{Handler: "reverse_proxy", Upstreams: []Upstream{
+		Match: []Match{{Host: []string{domain}}},
+		Handle: []Handle{{Handler: "subroute", Routes: []Route{
+			{
+				Handle: []Handle{{Handler: "reverse_proxy", Upstreams: []Upstream{
 					{Dial: fmt.Sprintf("%s:8079", gitopsName)},
 				}}},
 			},
@@ -72,17 +70,17 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 	// Bitswan editor route
 	routes = append(routes, Route{
 		Match: []Match{
-			Match{
+			{
 				Host: []string{fmt.Sprintf("editor.%s", domain)},
 			},
 		},
 		Handle: []Handle{
-			Handle{
+			{
 				Handler: "subroute",
 				Routes: []Route{
-					Route{
+					{
 						Handle: []Handle{
-							Handle{
+							{
 								Handler: "reverse_proxy",
 								Upstreams: []Upstream{
 									{
@@ -107,7 +105,7 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 					},
 				},
 				CertificateSelection: TLSCertificateSelection{
-					AnyTag: []string{fmt.Sprintf("%s", gitopsName)},
+					AnyTag: []string{gitopsName},
 				},
 			},
 		}
@@ -115,8 +113,8 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 		tlsLoad := []TLSFileLoad{
 			{
 				Certificate: fmt.Sprintf("/tls/%s/full-chain.pem", domain),
-				Key: fmt.Sprintf("/tls/%s/private-key.pem", domain),
-				Tags: []string{fmt.Sprintf("%s", gitopsName)},
+				Key:         fmt.Sprintf("/tls/%s/private-key.pem", domain),
+				Tags:        []string{gitopsName},
 			},
 		}
 
@@ -142,10 +140,7 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 		if err != nil {
 			return fmt.Errorf("Failed to add TLS policies to Caddy: %w", err)
 		}
-
 	}
-
-
 
 	jsonPayload, err := json.Marshal(routes)
 	if err != nil {
@@ -176,7 +171,7 @@ func InitCaddy() error {
 		} else {
 			payload = []byte(`[]`)
 		}
-		
+
 		if err := sendRequest("PUT", url, payload); err != nil {
 			return fmt.Errorf("failed to initialize Caddy: %w", err)
 		}

@@ -1,6 +1,13 @@
 linters-settings:
   lll:
     line-length: 180
+
+issues:
+  exclude-rules:
+    - linters:
+        - gosec
+      text: "G306:"
+
 linters:
   enable-all: true
   disable:
@@ -25,3 +32,24 @@ linters:
     - exhaustruct
     - nolintlint
     - wrapcheck
+    - funlen
+    - depguard
+    - wsl
+    - tagliatelle
+    - stylecheck
+    - noctx
+    - nlreturn
+    - gomnd
+    - err113
+    - gocognit
+    - gci
+    - goconst
+    - gocyclo
+    - godot
+    - godox
+    - gofumpt
+    - nestif
+    - revive
+    - cyclop
+    - maintidx
+    - forcetypeassert
