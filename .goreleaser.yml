@@ -58,10 +58,6 @@ nfpms:
     maintainer: "LibertyAces Ltd. <support@libertyaces.com>"
     description: "A general purpose golang CLI template for Github and Gitlab"
     license: BSD
-    formats:
-      - apk
-      - deb
-      - rpm
     bindir: /usr/bin
     contents:
       - src: ./manpages/bitswan-gitops-cli.1.gz
