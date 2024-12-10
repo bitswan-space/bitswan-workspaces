@@ -2,8 +2,6 @@ module github.com/bitswan-space/bitswan-gitops
 
 go 1.21
 
-toolchain go1.22.1
-
 require (
 	github.com/daixiang0/gci v0.12.1
 	github.com/dchest/uniuri v1.2.0
