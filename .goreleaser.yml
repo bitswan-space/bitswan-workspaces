@@ -25,19 +25,20 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-    replacements:
-      darwin: Darwin
-      linux: Linux
-      amd64: x86_64
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
 
 nfpms:
   - builds:
       - bitswan-gitops
     vendor: bitswan-space
     homepage:  https://github.com/bitswan-space/bitswan-gitops
-    maintainer: "Tom Morelly <tommorelly@gmail.com>"
+    maintainer: "LibertyAces Ltd. <support@libertyaces.com>"
     description: "A general purpose golang CLI template for Github and Gitlab"
-    license: GPL-3.0
+    license: BSD
     formats:
       - apk
       - deb
@@ -70,9 +71,9 @@ dockers:
   build_flag_templates:
   - "--pull"
   - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/bitswan-space/bitswan-gitops/master/README.md"
-  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Morelly\",\"email\":\"tommorelly@gmail.com\"}]"
-  - "--label=io.artifacthub.package.license=MIT"
-  - "--label=org.opencontainers.image.description=A general purpose golang CLI template for Github and Gitlab"
+  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"LibertyAces ltd\",\"email\":\"support@libertyaces.com\"}]"
+  - "--label=io.artifacthub.package.license=BSD"
+  - "--label=org.opencontainers.image.description=CLI for setting up and mananging bitswan gitops installations"
   - "--label=org.opencontainers.image.created={{.Date}}"
   - "--label=org.opencontainers.image.name={{.ProjectName}}"
   - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -88,9 +89,9 @@ dockers:
   - "--pull"
   - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/bitswan-space/bitswan-gitops/master/README.md"
   - "--label=io.artifacthub.package.logo-url=https://raw.githubusercontent.com/bitswan-space/bitswan-gitops/master/www/static/images/logo.png"
-  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Morelly\",\"email\":\"tommorelly@gmail.com\"}]"
-  - "--label=io.artifacthub.package.license=MIT"
-  - "--label=org.opencontainers.image.description=A general purpose golang CLI template for Github and Gitlab"
+  - "--label=io.artifacthub.package.license=BSD"
+  - "--label=io.artifacthub.package.maintainers=[{\"name\":\"LibertyAces ltd\",\"email\":\"support@libertyaces.com\"}]"
+  - "--label=org.opencontainers.image.description=CLI for setting up and mananging bitswan gitops installations"
   - "--label=org.opencontainers.image.created={{.Date}}"
   - "--label=org.opencontainers.image.name={{.ProjectName}}"
   - "--label=org.opencontainers.image.revision={{.FullCommit}}"
