@@ -103,8 +103,7 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 			{
 				Match: TLSMatch{
 					SNI: []string{
-						domain,
-						fmt.Sprintf("editor.%s", domain),
+						fmt.Sprintf("*.%s", domain),
 					},
 				},
 				CertificateSelection: TLSCertificateSelection{
