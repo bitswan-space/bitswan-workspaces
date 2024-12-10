@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/bitswan-space/bitswan-gitops/internal/caddyapi"
-	"github.com/bitswan-space/bitswan-gitops/internal/dockercompose"
-	"github.com/bitswan-space/bitswan-gitops/internal/dockerhub"
+	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
+	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
+	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockerhub"
 	"github.com/spf13/cobra"
 )
 
