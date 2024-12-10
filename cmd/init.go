@@ -225,9 +225,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Creating BitSwan Docker network...")
 	if err := createDockerNetworkCom.Run(); err != nil {
-		return fmt.Errorf("failed to create BitSwan Docker network: %w", err)
+		fmt.Println("Failed to create BitSwan Docker network: %s", err.Error())
+	} else {
+		fmt.Println("BitSwan Docker network created!")
 	}
-	fmt.Println("BitSwan Docker network created!")
 
 	fmt.Println("Setting up GitOps deployment...")
 	gitopsDeployment := gitopsConfig + "/deployment"
