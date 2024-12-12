@@ -193,6 +193,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create GitOps worktree: %w", err)
 	}
 
+	// Add repo as safe directory
+	safeDirCom := exec.Command("git", "config", "--global", "--add", "safe.directory", gitopsWorktree)
+	if err := safeDirCom.Run(); err != nil {
+		return fmt.Errorf("failed to add safe directory: %w", err)
+	}
+
 	if o.remoteRepo != "" {
 		// Create empty commit
 		emptyCommitCom := exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
