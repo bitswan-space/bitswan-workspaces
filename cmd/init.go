@@ -183,6 +183,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Println("Git initialized in workspace!")
 	}
 
+	// Change ownership of workspace folder recursively
+	chownCom := exec.Command("chown", "-R", "1000:1000", gitopsWorkspace)
+	if err := chownCom.Run(); err != nil {
+		return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
+	}
+
 	// Add GitOps worktree
 	gitopsWorktree := gitopsConfig + "/gitops"
 	worktreeAddCom := exec.Command("git", "worktree", "add", "--orphan", "-b", gitopsName, gitopsWorktree)
@@ -210,6 +216,17 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("GitOps worktree set up successfully!")
+
+	// Create secrets directory
+	secretsDir := gitopsConfig + "/secrets"
+	if err := os.MkdirAll(secretsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create secrets directory: %w", err)
+	}
+
+	chownCom = exec.Command("chown", "-R", "1000:1000", secretsDir)
+	if err := chownCom.Run(); err != nil {
+		return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+	}
 
 	gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
 	if err != nil {
