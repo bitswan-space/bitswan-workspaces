@@ -49,8 +49,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	bitswanConfig := os.Getenv("HOME") + "/.config/bitswan/"
 
 	if _, err := os.Stat(bitswanConfig); os.IsNotExist(err) {
-		if err := os.MkdirAll(bitswanConfig, 0755); err != nil {
-			return fmt.Errorf("Failed to create BitSwan config directory: %w", err)
+		if err := os.MkdirAll(bitswanConfig, 0644); err != nil {
+			return fmt.Errorf("failed to create BitSwan config directory: %w", err)
 		}
 	}
 
@@ -67,8 +67,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	if _, err := os.Stat(caddyConfig); os.IsNotExist(err) {
 		fmt.Println("Setting up Caddy...")
-		if err := os.MkdirAll(caddyConfig, 0755); err != nil {
-			return fmt.Errorf("Failed to create Caddy config directory: %w", err)
+		if err := os.MkdirAll(caddyConfig, 0644); err != nil {
+			return fmt.Errorf("failed to create Caddy config directory: %w", err)
 		}
 
 		// Create Caddyfile with email and modify admin listener
@@ -119,15 +119,15 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	if o.certsDir != "" {
 		caddyCertsDir := caddyConfig + "/certs"
 		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
-			if err := os.MkdirAll(caddyCertsDir, 0755); err != nil {
-				panic(fmt.Errorf("Failed to create Caddy certs directory: %w", err))
+			if err := os.MkdirAll(caddyCertsDir, 0644); err != nil {
+				return fmt.Errorf("failed to create Caddy certs directory: %w", err)
 			}
 		}
 
 		certsDir := caddyCertsDir + "/" + o.domain
 		if _, err := os.Stat(certsDir); os.IsNotExist(err) {
-			if err := os.MkdirAll(certsDir, 0755); err != nil {
-				panic(fmt.Errorf("Failed to create certs directory: %w", err))
+			if err := os.MkdirAll(certsDir, 0644); err != nil {
+				return fmt.Errorf("failed to create certs directory: %w", err)
 			}
 		}
 
@@ -177,8 +177,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("GitOps with this name was already initialized: %s", gitopsName)
 	}
 
-	if err := os.MkdirAll(gitopsConfig, 0755); err != nil {
-		return fmt.Errorf("Failed to create GitOps directory: %w", err)
+	if err := os.MkdirAll(gitopsConfig, 0644); err != nil {
+		return fmt.Errorf("failed to create GitOps directory: %w", err)
 	}
 
 	// Initialize Bitswan workspace
@@ -192,8 +192,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Println("Remote repository cloned!")
 	} else {
-		if err := os.Mkdir(gitopsWorkspace, 0755); err != nil {
-			panic(fmt.Errorf("Failed to create GitOps workspace directory %s: %w", gitopsWorkspace, err))
+		if err := os.Mkdir(gitopsWorkspace, 0644); err != nil {
+			return fmt.Errorf("failed to create GitOps workspace directory %s: %w", gitopsWorkspace, err)
 		}
 		com := exec.Command("git", "init")
 		com.Dir = gitopsWorkspace
@@ -205,6 +205,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Println("Git initialized in workspace!")
+	}
+
+	// Change ownership of workspace folder recursively
+	chownCom := exec.Command("chown", "-R", "1000:1000", gitopsWorkspace)
+	if err := chownCom.Run(); err != nil {
+		return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
 	}
 
 	// Add GitOps worktree
@@ -241,6 +247,17 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("GitOps worktree set up successfully!")
 
+	// Create secrets directory
+	secretsDir := gitopsConfig + "/secrets"
+	if err := os.MkdirAll(secretsDir, 0660); err != nil {
+		return fmt.Errorf("failed to create secrets directory: %w", err)
+	}
+
+	chownCom = exec.Command("chown", "-R", "1000:1000", secretsDir)
+	if err := chownCom.Run(); err != nil {
+		return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+	}
+
 	gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
 	if err != nil {
 		panic(fmt.Errorf("Failed to get latest BitSwan GitOps version: %w", err))
@@ -266,8 +283,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Setting up GitOps deployment...")
 	gitopsDeployment := gitopsConfig + "/deployment"
-	if err := os.MkdirAll(gitopsDeployment, 0755); err != nil {
-		panic(fmt.Errorf("Failed to create deployment directory: %w", err))
+	if err := os.MkdirAll(gitopsDeployment, 0644); err != nil {
+		return fmt.Errorf("Failed to create deployment directory: %w", err)
 	}
 
 	err = caddyapi.AddCaddyRecords(gitopsName, o.domain, o.certsDir != "")
