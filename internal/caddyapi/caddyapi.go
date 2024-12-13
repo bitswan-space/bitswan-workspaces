@@ -84,7 +84,7 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 								Handler: "reverse_proxy",
 								Upstreams: []Upstream{
 									{
-										Dial: fmt.Sprintf("bitswan-editor-%s:8080", gitopsName),
+										Dial: fmt.Sprintf("bitswan-editor-%s:9999", gitopsName),
 									},
 								},
 							},
