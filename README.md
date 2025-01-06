@@ -30,7 +30,7 @@ CLI app for managing bitswan-gitops deployments
 
 ```
 # Download and extract the binary in one command
-curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/download/0.1.4/bitswan-gitops-cli_Linux_x86_64.tar.gz | tar -xz
+curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/download/0.1.5/bitswan-gitops-cli_Linux_x86_64.tar.gz | tar -xz
 ```
 
 Move the binary to a directory in your PATH
@@ -68,6 +68,52 @@ bitswan-gitops init --domain=my-gitops.bitswan.io my-gitops
 ```sh
 bitswan-gitops init --domain=my-gitops.my-domain.local --certs-dir=/etc/certs my-gitops
 ```
+
+### Local dev
+
+This is for setting up gitops locally without first setting up a domain name or connecting to the SaaS.
+
+First add to /etc/hosts:
+
+```sh
+      127.0.0.1 editor.bitswan.localhost
+      127.0.0.1 gitops.bitswan.localhost
+      127.0.0.1 testpipeline.bitswan.localhost
+```
+
+Create some certs for these domains using a certificate authority you setup for yourself. 
+
+```sh
+mkdir bitswan-certs
+cd bitswan-certs
+```
+
+```sh
+mkcert --install
+```
+
+Add the CA certificate to Chrome by:
+1. Navigate to chrome://settings/certificates
+2. Go to "Authorities" tab
+3. Click "Import" and select the ca.crt file
+4. Check all trust settings and click "OK"
+
+Now generate the wildcard certificates:
+```
+mkcert "*.bitswan.localhost"
+
+mv _wildcard.bitswan.localhost-key.pem private-key.pem
+mv _wildcard.bitswan.localhost.pem full-chain.pem
+
+```
+
+And finally setup the gitops.
+
+```sh
+bitswan-gitops init --domain=bitswan.localhost --certs-dir=$PWD dev-gitops
+```
+
+You should be able to access the editor in chrome via https://editor.localhost.¨
 
 ## Remote git repository
 If you wanna connect and persist your pipelines and GitOps configuration in remote git repository you can use `--remote` flag to specify your repository. `main` branch will be used to store pipelines code and each GitOps will create it's own branch (e.g. `my-gitops`) to store their configurations.
