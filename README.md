@@ -113,7 +113,15 @@ And finally setup the gitops.
 bitswan-gitops init --domain=bitswan.localhost --certs-dir=$PWD dev-gitops
 ```
 
-You should be able to access the editor in chrome via https://editor.localhost.¨
+You should be able to access the editor in chrome via https://editor.localhost.
+
+You can get the password to the editor using the command:
+
+``sh
+docker exec -it dev-gitops-site-bitswan-editor-dev-gitops-1 cat /home/coder/.config/code-server/config.yaml
+``
+
+
 
 ## Remote git repository
 If you wanna connect and persist your pipelines and GitOps configuration in remote git repository you can use `--remote` flag to specify your repository. `main` branch will be used to store pipelines code and each GitOps will create it's own branch (e.g. `my-gitops`) to store their configurations.
