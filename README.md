@@ -52,13 +52,13 @@ export PATH="$HOME/bin:$PATH"
 # Setting up and connecting a gitops instance
 ## SaaS
 ```sh
-bitswan-gitops init my-gitops
+bitswan-gitops-cli init my-gitops
 ```
 
 ## On-prem
 ### With public domain
 ```sh
-bitswan-gitops init --domain=my-gitops.bitswan.io my-gitops
+bitswan-gitops-cli init --domain=my-gitops.bitswan.io my-gitops
 ```
 ### With internal domain
 > Note:
@@ -66,7 +66,7 @@ bitswan-gitops init --domain=my-gitops.bitswan.io my-gitops
 > Before you initialize gitops with internal domain, make sure you have generated certificate for sub domain of gitops instance, e.g. `*.my-gitops.my-domain.local`. You have to specify path to the certificate and private key in `init` command. Certificate and private key must be in a format `full-chain.pem` and `private-key.pem`.
 
 ```sh
-bitswan-gitops init --domain=my-gitops.my-domain.local --certs-dir=/etc/certs my-gitops
+bitswan-gitops-cli init --domain=my-gitops.my-domain.local --certs-dir=/etc/certs my-gitops
 ```
 
 ### Local dev
@@ -110,16 +110,16 @@ mv _wildcard.bitswan.localhost.pem full-chain.pem
 And finally setup the gitops.
 
 ```sh
-bitswan-gitops init --domain=bitswan.localhost --certs-dir=$PWD dev-gitops
+bitswan-gitops-cli init --domain=bitswan.localhost --certs-dir=$PWD dev-gitops
 ```
 
 You should be able to access the editor in chrome via https://editor.localhost.
 
 You can get the password to the editor using the command:
 
-``sh
+```sh
 docker exec -it dev-gitops-site-bitswan-editor-dev-gitops-1 cat /home/coder/.config/code-server/config.yaml
-``
+```
 
 
 
@@ -127,7 +127,7 @@ docker exec -it dev-gitops-site-bitswan-editor-dev-gitops-1 cat /home/coder/.con
 If you wanna connect and persist your pipelines and GitOps configuration in remote git repository you can use `--remote` flag to specify your repository. `main` branch will be used to store pipelines code and each GitOps will create it's own branch (e.g. `my-gitops`) to store their configurations.
 
 ```sh
-bitswan-gitops --remote=git@github.com:<your-name>/<your-repo>.git my-gitops
+bitswan-gitops-cli --remote=git@github.com:<your-name>/<your-repo>.git my-gitops
 ```
 
 # Contribute
