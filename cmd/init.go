@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+
+
 type initOptions struct {
 	remoteRepo string
 	domain     string
@@ -292,7 +294,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		panic(fmt.Errorf("Failed to add Caddy records: %w", err))
 	}
 
-	compose, err := dockercompose.CreateDockerComposeFile(
+	compose, token, err := dockercompose.CreateDockerComposeFile(
 		gitopsConfig,
 		gitopsName,
 		gitopsLatestVersion,
@@ -325,5 +327,23 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("BitSwan GitOps initialized successfully!")
+
+	// Get Bitswan Editor password from container
+
+	editorPassword, err := dockercompose.GetEditorPassword(projectName, gitopsName)
+	if err != nil {
+		panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
+	}
+
+	fmt.Println("------------GITOPS INFO------------")
+	fmt.Printf("GitOps ID: %s\n", gitopsName)
+	fmt.Printf("GitOps URL: https://%s\n", o.domain)
+	fmt.Printf("GitOps Secret: %s\n", token)
+
+	fmt.Println("------------BITSWAN EDITOR INFO------------")
+	fmt.Printf("Bitswan Editor URL: https://editor.%s\n", o.domain)
+	fmt.Printf("Bitswan Editor Password: %s\n", editorPassword)
+
+
 	return nil
 }

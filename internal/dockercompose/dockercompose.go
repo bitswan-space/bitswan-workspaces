@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
 
 	"github.com/dchest/uniuri"
@@ -18,7 +19,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath, domain string) (string, error) {
+func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath, domain string) (string, string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -31,7 +32,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	case "linux":
 		hostOs = Linux
 	default:
-		return "", fmt.Errorf("unsupported host OS: %s", hostOsTmp)
+		return "", "", fmt.Errorf("unsupported host OS: %s", hostOsTmp)
 	}
 
 	// generate a random secret token
@@ -67,7 +68,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 		// Rewrite .git in worktree because it's calling git command inside the container (only for Windows and Mac)
 		gitdir := "gitdir: /workspace-repo/.git/worktrees/gitops"
 		if err := os.WriteFile(gitopsPath+"/gitops/.git", []byte(gitdir), 0644); err != nil {
-			return "", fmt.Errorf("failed to rewrite gitops worktree .git file: %w", err)
+			return "", "", fmt.Errorf("failed to rewrite gitops worktree .git file: %w", err)
 		}
 	} else if hostOs == Linux {
 		gitopsService["privileged"] = true
@@ -119,10 +120,10 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	encoder := yaml.NewEncoder(&buf)
 	encoder.SetIndent(2) // Optional: Set indentation
 	if err := encoder.Encode(dockerCompose); err != nil {
-		return "", fmt.Errorf("failed to encode docker-compose data structure: %w", err)
+		return "", "", fmt.Errorf("failed to encode docker-compose data structure: %w", err)
 	}
 
-	return buf.String(), nil
+	return buf.String(), gitopsSecretToken, nil
 }
 
 func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, error) {
@@ -164,4 +165,27 @@ func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, 
 	}
 
 	return buf.String(), nil
+}
+
+
+type EditorConfig struct {
+	BindAddress string `yaml:"bind-addr"`
+	Auth string `yaml:"auth"`
+	Password string `yaml:"password"`
+	Cert bool `yaml:"cert"`
+}
+
+func GetEditorPassword(projectName, gitopsName string) (string, error) {
+	getBitswanEditorPasswordCom := exec.Command("docker", "exec", projectName+"-bitswan-editor-"+gitopsName+"-1", "cat", "/home/coder/.config/code-server/config.yaml")
+	out, err := getBitswanEditorPasswordCom.Output()
+	if err != nil {
+		return "", fmt.Errorf("Failed to get Bitswan Editor password: %w", err)
+	}
+
+	var editorConfig EditorConfig
+	if err := yaml.Unmarshal(out, &editorConfig); err != nil {
+		return "", fmt.Errorf("Failed to unmarshal editor config: %w", err)
+	}
+
+	return editorConfig.Password, nil
 }
