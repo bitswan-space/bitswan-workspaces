@@ -30,7 +30,7 @@ CLI app for managing bitswan-gitops deployments
 
 ```
 # Download and extract the binary in one command
-curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/download/0.1.5/bitswan-gitops-cli_Linux_x86_64.tar.gz | tar -xz
+curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/download/0.1.6/bitswan-gitops-cli_Linux_x86_64.tar.gz | tar -xz
 ```
 
 Move the binary to a directory in your PATH
