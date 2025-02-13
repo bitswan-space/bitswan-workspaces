@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
-	"encoding/json"
-    "strings"
 
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
@@ -14,24 +14,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-
 type initOptions struct {
 	remoteRepo string
 	domain     string
 	certsDir   string
-	noIde 	bool
+	noIde      bool
 }
 
 type DockerNetwork struct {
-    Name      string `json:"Name"`
-    ID        string `json:"ID"`
-    CreatedAt string `json:"CreatedAt"`
-    Driver    string `json:"Driver"`
-    IPv6      string `json:"IPv6"`
-    Internal  string `json:"Internal"`
-    Labels    string `json:"Labels"`
-    Scope     string `json:"Scope"`
+	Name      string `json:"Name"`
+	ID        string `json:"ID"`
+	CreatedAt string `json:"CreatedAt"`
+	Driver    string `json:"Driver"`
+	IPv6      string `json:"IPv6"`
+	Internal  string `json:"Internal"`
+	Labels    string `json:"Labels"`
+	Scope     string `json:"Scope"`
 }
 
 func defaultInitOptions() *initOptions {
@@ -53,7 +51,6 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.certsDir, "certs-dir", "", "The directory where the certificates are located")
 	cmd.Flags().BoolVar(&o.noIde, "no-ide", false, "Do not start Bitswan Editor")
 
-
 	return cmd
 }
 
@@ -64,29 +61,29 @@ func cleanup(dir string) {
 }
 
 func checkNetworkExists(networkName string) (bool, error) {
-    // Run docker network ls command with JSON format
-    cmd := exec.Command("docker", "network", "ls", "--format=json")
-    output, err := cmd.Output()
-    if err != nil {
-        return false, fmt.Errorf("error running docker command: %v", err)
-    }
+	// Run docker network ls command with JSON format
+	cmd := exec.Command("docker", "network", "ls", "--format=json")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("error running docker command: %v", err)
+	}
 
-    // Split output into lines
-    lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// Split output into lines
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 
-    // Process each line
-    for _, line := range lines {
-        var network DockerNetwork
-        if err := json.Unmarshal([]byte(line), &network); err != nil {
-            return false, fmt.Errorf("error parsing JSON: %v", err)
-        }
+	// Process each line
+	for _, line := range lines {
+		var network DockerNetwork
+		if err := json.Unmarshal([]byte(line), &network); err != nil {
+			return false, fmt.Errorf("error parsing JSON: %v", err)
+		}
 
-        if network.Name == networkName {
-            return true, nil
-        }
-    }
+		if network.Name == networkName {
+			return true, nil
+		}
+	}
 
-    return false, nil
+	return false, nil
 }
 
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
@@ -312,27 +309,27 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		panic(fmt.Errorf("Failed to get latest BitSwan Editor version: %w", err))
 	}
 
-    networkName := "bitswan_network"
-    exists, err := checkNetworkExists(networkName)
-    if err != nil {
-        panic(fmt.Errorf("Error checking network: %v\n", err))
-    }
+	networkName := "bitswan_network"
+	exists, err := checkNetworkExists(networkName)
+	if err != nil {
+		panic(fmt.Errorf("Error checking network: %v\n", err))
+	}
 
-    if exists {
-        fmt.Printf("Network '%s' exists\n", networkName)
-    } else {
-        createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
-        fmt.Println("Creating BitSwan Docker network...")
-        if err := createDockerNetworkCom.Run(); err != nil {
-            if err.Error() == "exit status 1" {
-                fmt.Println("BitSwan Docker network already exists!")
-            } else {
-                fmt.Printf("Failed to create BitSwan Docker network: %s\n", err.Error())
-            }
-        } else {
-            fmt.Println("BitSwan Docker network created!")
-        }
-    }
+	if exists {
+		fmt.Printf("Network '%s' exists\n", networkName)
+	} else {
+		createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
+		fmt.Println("Creating BitSwan Docker network...")
+		if err := createDockerNetworkCom.Run(); err != nil {
+			if err.Error() == "exit status 1" {
+				fmt.Println("BitSwan Docker network already exists!")
+			} else {
+				fmt.Printf("Failed to create BitSwan Docker network: %s\n", err.Error())
+			}
+		} else {
+			fmt.Println("BitSwan Docker network created!")
+		}
+	}
 
 	fmt.Println("Setting up GitOps deployment...")
 	gitopsDeployment := gitopsConfig + "/deployment"
@@ -340,7 +337,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to create deployment directory: %w", err)
 	}
 
-	err = caddyapi.AddCaddyRecords(gitopsName, o.domain, o.certsDir != "")
+	err = caddyapi.AddCaddyRecords(gitopsName, o.domain, o.certsDir != "", o.noIde)
 	if err != nil {
 		panic(fmt.Errorf("Failed to add Caddy records: %w", err))
 	}
@@ -352,7 +349,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		bitswanEditorLatestVersion,
 		o.certsDir,
 		o.domain,
-o.noIde,
+		o.noIde,
 	)
 	if err != nil {
 		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
@@ -382,9 +379,9 @@ o.noIde,
 
 	// Get Bitswan Editor password from container
 	if !o.noIde {
-	editorPassword, err := dockercompose.GetEditorPassword(projectName, gitopsName)
-	if err != nil {
-		panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
+		editorPassword, err := dockercompose.GetEditorPassword(projectName, gitopsName)
+		if err != nil {
+			panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
 		}
 		fmt.Println("------------BITSWAN EDITOR INFO------------")
 		fmt.Printf("Bitswan Editor URL: https://editor.%s\n", o.domain)
@@ -395,11 +392,6 @@ o.noIde,
 	fmt.Printf("GitOps ID: %s\n", gitopsName)
 	fmt.Printf("GitOps URL: https://%s\n", o.domain)
 	fmt.Printf("GitOps Secret: %s\n", token)
-
-	fmt.Println("------------BITSWAN EDITOR INFO------------")
-	fmt.Printf("Bitswan Editor URL: https://editor.%s\n", o.domain)
-	fmt.Printf("Bitswan Editor Password: %s\n", editorPassword)
-
 
 	return nil
 }
