@@ -58,6 +58,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Init shared Caddy if not exists
 	caddyConfig := bitswanConfig + "caddy"
+caddyCertsDir := caddyConfig + "/certs"
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -102,6 +103,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		caddyProjectName := "bitswan-caddy"
 		caddyDockerComposeCom := exec.Command("docker", "compose", "-p", caddyProjectName, "up", "-d")
+
+		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(caddyCertsDir, 0740); err != nil {
+				return fmt.Errorf("failed to create Caddy certs directory: %w", err)
+			}
+		}
 
 		fmt.Println("Starting Caddy...")
 		if err := caddyDockerComposeCom.Run(); err != nil {
