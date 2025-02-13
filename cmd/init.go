@@ -18,6 +18,7 @@ type initOptions struct {
 	remoteRepo string
 	domain     string
 	certsDir   string
+	noIde 	bool
 }
 
 func defaultInitOptions() *initOptions {
@@ -37,6 +38,8 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.remoteRepo, "remote", "", "The remote repository to clone")
 	cmd.Flags().StringVar(&o.domain, "domain", "", "The domain to use for the Caddyfile")
 	cmd.Flags().StringVar(&o.certsDir, "certs-dir", "", "The directory where the certificates are located")
+	cmd.Flags().BoolVar(&o.noIde, "no-ide", false, "Do not start Bitswan Editor")
+
 
 	return cmd
 }
@@ -301,6 +304,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		bitswanEditorLatestVersion,
 		o.certsDir,
 		o.domain,
+o.noIde,
 	)
 	if err != nil {
 		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
@@ -329,10 +333,14 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Println("BitSwan GitOps initialized successfully!")
 
 	// Get Bitswan Editor password from container
-
+	if !o.noIde {
 	editorPassword, err := dockercompose.GetEditorPassword(projectName, gitopsName)
 	if err != nil {
 		panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
+		}
+		fmt.Println("------------BITSWAN EDITOR INFO------------")
+		fmt.Printf("Bitswan Editor URL: https://editor.%s\n", o.domain)
+		fmt.Printf("Bitswan Editor Password: %s\n", editorPassword)
 	}
 
 	fmt.Println("------------GITOPS INFO------------")

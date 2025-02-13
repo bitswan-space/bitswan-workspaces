@@ -47,7 +47,7 @@ type TLSFileLoad struct {
 }
 
 // TODO: we should think about how to handle the case when use would like to deploy GitOps on server where Caddy is already running
-func AddCaddyRecords(gitopsName, domain string, certs bool) error {
+func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 	caddyAPIRoutesBaseUrl := "http://localhost:2019/config/apps/http/servers/srv0/routes/..."
 	caddyAPITLSBaseUrl := "http://localhost:2019/config/apps/tls/certificates/load_files/..."
 	caddyAPITLSPoliciesBaseUrl := "http://localhost:2019/config/apps/http/servers/srv0/tls_connection_policies/..."
@@ -68,23 +68,25 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 	})
 
 	// Bitswan editor route
-	routes = append(routes, Route{
-		Match: []Match{
-			{
-				Host: []string{fmt.Sprintf("editor.%s", domain)},
+	if !noIde{
+		routes = append(routes, Route{
+			Match: []Match{
+				{
+					Host: []string{fmt.Sprintf("editor.%s", domain)},
+				},
 			},
-		},
-		Handle: []Handle{
-			{
-				Handler: "subroute",
-				Routes: []Route{
-					{
-						Handle: []Handle{
-							{
-								Handler: "reverse_proxy",
-								Upstreams: []Upstream{
-									{
-										Dial: fmt.Sprintf("bitswan-editor-%s:9999", gitopsName),
+			Handle: []Handle{
+				{
+					Handler: "subroute",
+					Routes: []Route{
+						{
+							Handle: []Handle{
+								{
+									Handler: "reverse_proxy",
+									Upstreams: []Upstream{
+										{
+											Dial: fmt.Sprintf("bitswan-editor-%s:9999", gitopsName),
+										},
 									},
 								},
 							},
@@ -92,9 +94,9 @@ func AddCaddyRecords(gitopsName, domain string, certs bool) error {
 					},
 				},
 			},
-		},
-		Terminal: true,
-	})
+			Terminal: true,
+		})
+	}
 
 	if certs {
 		tlsPolicy := []TLSPolicy{
