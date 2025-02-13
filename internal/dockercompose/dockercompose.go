@@ -19,7 +19,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath, domain string) (string, string, error) {
+func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath, domain string, noIde bool) (string, string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -87,31 +87,36 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 		"version": "3.8",
 		"services": map[string]interface{}{
 			gitopsName: gitopsService,
-			fmt.Sprintf("bitswan-editor-%s", gitopsName): map[string]interface{}{
-				"image":    "bitswan/bitswan-editor:" + latestBitswanEditorVersion,
-				"restart":  "always",
-				"networks": []string{"bitswan_network"},
-				"environment": []string{
-					"BITSWAN_DEPLOY_URL=" + fmt.Sprintf("http://%s", net.JoinHostPort(gitopsName, "8079")),
-					"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken,
-					"BITSWAN_GITOPS_DIR=/home/coder/workspace",
-				},
-				"volumes": []string{
-					gitopsPath + "/workspace:/home/coder/workspace/workspace",
-					gitopsPath + "/secrets:/home/coder/workspace/secrets",
-					sshDir + ":/home/coder/.ssh",
-					"bitswan-editor-data:/home/coder",
-				},
-			},
-		},
-		"volumes": map[string]interface{}{
-			"bitswan-editor-data": nil,
 		},
 		"networks": map[string]interface{}{
 			"bitswan_network": map[string]interface{}{
 				"external": true,
 			},
 		},
+	}
+
+	if !noIde {
+		bitswanEditor := map[string]interface{}{
+			"image":    "bitswan/bitswan-editor:" + latestBitswanEditorVersion,
+			"restart":  "always",
+			"networks": []string{"bitswan_network"},
+			"environment": []string{
+				"BITSWAN_DEPLOY_URL=" + fmt.Sprintf("http://%s", net.JoinHostPort(gitopsName, "8079")),
+				"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken,
+				"BITSWAN_GITOPS_DIR=/home/coder/workspace",
+			},
+			"volumes": []string{
+				gitopsPath + "/workspace:/home/coder/workspace/workspace",
+				gitopsPath + "/secrets:/home/coder/workspace/secrets",
+				sshDir + ":/home/coder/.ssh",
+				"bitswan-editor-data:/home/coder",
+			},
+		}
+
+		dockerCompose["services"].(map[string]interface{})[fmt.Sprintf("bitswan-editor-%s", gitopsName)] = bitswanEditor
+		dockerCompose["volumes"] = map[string]interface{}{
+			"bitswan-editor-data": nil,
+		}
 	}
 
 	var buf bytes.Buffer
