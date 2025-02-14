@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"bytes"
 
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
@@ -95,9 +96,32 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Init bitswan network
+	networkName := "bitswan_network"
+	exists, err := checkNetworkExists(networkName)
+	if err != nil {
+		panic(fmt.Errorf("Error checking network: %v\n", err))
+	}
+
+	if exists {
+		fmt.Printf("Network '%s' exists\n", networkName)
+	} else {
+		createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
+		fmt.Println("Creating BitSwan Docker network...")
+		if err := createDockerNetworkCom.Run(); err != nil {
+			if err.Error() == "exit status 1" {
+				fmt.Println("BitSwan Docker network already exists!")
+			} else {
+				fmt.Printf("Failed to create BitSwan Docker network: %s\n", err.Error())
+			}
+		} else {
+			fmt.Println("BitSwan Docker network created!")
+		}
+	}
+
 	// Init shared Caddy if not exists
 	caddyConfig := bitswanConfig + "caddy"
-caddyCertsDir := caddyConfig + "/certs"
+  caddyCertsDir := caddyConfig + "/certs"
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -143,15 +167,23 @@ caddyCertsDir := caddyConfig + "/certs"
 		caddyProjectName := "bitswan-caddy"
 		caddyDockerComposeCom := exec.Command("docker", "compose", "-p", caddyProjectName, "up", "-d")
 
+		// Capture both stdout and stderr
+		var stdout, stderr bytes.Buffer
+		caddyDockerComposeCom.Stdout = &stdout
+		caddyDockerComposeCom.Stderr = &stderr
+
+		// Create certs directory if it doesn't exist
 		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
 			if err := os.MkdirAll(caddyCertsDir, 0740); err != nil {
-				return fmt.Errorf("failed to create Caddy certs directory: %w", err)
+        return fmt.Errorf("failed to create Caddy certs directory: %w", err)
 			}
 		}
 
 		fmt.Println("Starting Caddy...")
 		if err := caddyDockerComposeCom.Run(); err != nil {
-			panic(fmt.Errorf("Failed to start Caddy: %w", err))
+			// Combine stdout and stderr for complete output
+			fullOutput := stdout.String() + stderr.String()
+			return fmt.Errorf("Failed to start Caddy:\nError: %v\nOutput:\n%s", err, fullOutput)
 		}
 
 		// wait 5s to make sure Caddy is up
@@ -314,28 +346,6 @@ caddyCertsDir := caddyConfig + "/certs"
 	bitswanEditorLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/bitswan-editor/tags/")
 	if err != nil {
 		panic(fmt.Errorf("Failed to get latest BitSwan Editor version: %w", err))
-	}
-
-	networkName := "bitswan_network"
-	exists, err := checkNetworkExists(networkName)
-	if err != nil {
-		panic(fmt.Errorf("Error checking network: %v\n", err))
-	}
-
-	if exists {
-		fmt.Printf("Network '%s' exists\n", networkName)
-	} else {
-		createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
-		fmt.Println("Creating BitSwan Docker network...")
-		if err := createDockerNetworkCom.Run(); err != nil {
-			if err.Error() == "exit status 1" {
-				fmt.Println("BitSwan Docker network already exists!")
-			} else {
-				fmt.Printf("Failed to create BitSwan Docker network: %s\n", err.Error())
-			}
-		} else {
-			fmt.Println("BitSwan Docker network created!")
-		}
 	}
 
 	fmt.Println("Setting up GitOps deployment...")
