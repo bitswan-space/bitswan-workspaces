@@ -96,6 +96,29 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Init bitswan network
+	networkName := "bitswan_network"
+	exists, err := checkNetworkExists(networkName)
+	if err != nil {
+		panic(fmt.Errorf("Error checking network: %v\n", err))
+	}
+
+	if exists {
+		fmt.Printf("Network '%s' exists\n", networkName)
+	} else {
+		createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
+		fmt.Println("Creating BitSwan Docker network...")
+		if err := createDockerNetworkCom.Run(); err != nil {
+			if err.Error() == "exit status 1" {
+				fmt.Println("BitSwan Docker network already exists!")
+			} else {
+				fmt.Printf("Failed to create BitSwan Docker network: %s\n", err.Error())
+			}
+		} else {
+			fmt.Println("BitSwan Docker network created!")
+		}
+	}
+
 	// Init shared Caddy if not exists
 	caddyConfig := bitswanConfig + "caddy"
   caddyCertsDir := caddyConfig + "/certs"
@@ -323,28 +346,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	bitswanEditorLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/bitswan-editor/tags/")
 	if err != nil {
 		panic(fmt.Errorf("Failed to get latest BitSwan Editor version: %w", err))
-	}
-
-	networkName := "bitswan_network"
-	exists, err := checkNetworkExists(networkName)
-	if err != nil {
-		panic(fmt.Errorf("Error checking network: %v\n", err))
-	}
-
-	if exists {
-		fmt.Printf("Network '%s' exists\n", networkName)
-	} else {
-		createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
-		fmt.Println("Creating BitSwan Docker network...")
-		if err := createDockerNetworkCom.Run(); err != nil {
-			if err.Error() == "exit status 1" {
-				fmt.Println("BitSwan Docker network already exists!")
-			} else {
-				fmt.Printf("Failed to create BitSwan Docker network: %s\n", err.Error())
-			}
-		} else {
-			fmt.Println("BitSwan Docker network created!")
-		}
 	}
 
 	fmt.Println("Setting up GitOps deployment...")
