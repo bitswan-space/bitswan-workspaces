@@ -139,8 +139,9 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	caddy_running := true
 	if err != nil {
 		caddy_running = false
+	} else {
+		defer resp.Body.Close()
 	}
-	defer resp.Body.Close()
 
 	if !caddy_running {
 		fmt.Println("Setting up Caddy...")
