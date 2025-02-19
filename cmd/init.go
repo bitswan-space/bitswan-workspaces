@@ -329,7 +329,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Create secrets directory
 	secretsDir := gitopsConfig + "/secrets"
-	if err := os.MkdirAll(secretsDir, 0660); err != nil {
+	if err := os.MkdirAll(secretsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create secrets directory: %w", err)
 	}
 
