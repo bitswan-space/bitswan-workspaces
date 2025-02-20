@@ -21,6 +21,8 @@ type initOptions struct {
 	domain     string
 	certsDir   string
 	noIde      bool
+	gitopsImage string
+	editorImage string
 }
 
 type DockerNetwork struct {
@@ -52,6 +54,8 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.domain, "domain", "", "The domain to use for the Caddyfile")
 	cmd.Flags().StringVar(&o.certsDir, "certs-dir", "", "The directory where the certificates are located")
 	cmd.Flags().BoolVar(&o.noIde, "no-ide", false, "Do not start Bitswan Editor")
+	cmd.Flags().StringVar(&o.gitopsImage, "gitops-image", "", "Custom image for the gitops")
+	cmd.Flags().StringVar(&o.editorImage, "editor-image", "", "Custom image for the editor")
 
 	return cmd
 }
@@ -352,14 +356,22 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
 	}
 
-	gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
-	if err != nil {
-		panic(fmt.Errorf("Failed to get latest BitSwan GitOps version: %w", err))
+	gitopsImage := o.gitopsImage
+	if gitopsImage == "" {
+		gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
+		if err != nil {
+			panic(fmt.Errorf("Failed to get latest BitSwan GitOps version: %w", err))
+		}
+		gitopsImage = "bitswan/gitops:" + gitopsLatestVersion
 	}
 
-	bitswanEditorLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/bitswan-editor/tags/")
-	if err != nil {
-		panic(fmt.Errorf("Failed to get latest BitSwan Editor version: %w", err))
+	bitswanEditorImage := o.editorImage
+	if bitswanEditorImage == "" {
+		bitswanEditorLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/bitswan-editor/tags/")
+		if err != nil {
+			panic(fmt.Errorf("Failed to get latest BitSwan Editor version: %w", err))
+		}
+		bitswanEditorImage = "bitswan/bitswan-editor:" + bitswanEditorLatestVersion
 	}
 
 	fmt.Println("Setting up GitOps deployment...")
@@ -376,8 +388,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	compose, token, err := dockercompose.CreateDockerComposeFile(
 		gitopsConfig,
 		gitopsName,
-		gitopsLatestVersion,
-		bitswanEditorLatestVersion,
+		gitopsImage,
+		bitswanEditorImage,
 		o.certsDir,
 		o.domain,
 		o.noIde,
