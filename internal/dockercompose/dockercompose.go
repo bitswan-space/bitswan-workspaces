@@ -19,7 +19,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath, domain string, noIde bool) (string, string, error) {
+func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorImage, certsPath, domain string, noIde bool) (string, string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -39,7 +39,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	gitopsSecretToken := uniuri.NewLen(64)
 
 	gitopsService := map[string]interface{}{
-		"image":    "bitswan/gitops:" + latestGitopsVersion,
+		"image":    gitopsImage,
 		"restart":  "always",
 		"networks": []string{"bitswan_network"},
 		"volumes": []string{
@@ -97,7 +97,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 
 	if !noIde {
 		bitswanEditor := map[string]interface{}{
-			"image":    "bitswan/bitswan-editor:" + latestBitswanEditorVersion,
+			"image":    bitswanEditorImage,
 			"restart":  "always",
 			"networks": []string{"bitswan_network"},
 			"environment": []string{
@@ -172,12 +172,11 @@ func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, 
 	return buf.String(), nil
 }
 
-
 type EditorConfig struct {
 	BindAddress string `yaml:"bind-addr"`
-	Auth string `yaml:"auth"`
-	Password string `yaml:"password"`
-	Cert bool `yaml:"cert"`
+	Auth        string `yaml:"auth"`
+	Password    string `yaml:"password"`
+	Cert        bool   `yaml:"cert"`
 }
 
 func GetEditorPassword(projectName, gitopsName string) (string, error) {
