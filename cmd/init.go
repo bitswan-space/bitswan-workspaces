@@ -440,9 +440,21 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	projectName := gitopsName + "-site"
 	dockerComposeCom := exec.Command("docker", "compose", "-p", projectName, "up", "-d")
 
+	// Capture both stdout and stderr
+	var stdout, stderr bytes.Buffer
+	dockerComposeCom.Stdout = &stdout
+	dockerComposeCom.Stderr = &stderr
+
 	fmt.Println("Starting BitSwan GitOps...")
 	if err := dockerComposeCom.Run(); err != nil {
-		panic(fmt.Errorf("failed to start docker-compose: %w", err))
+    // Print the captured output
+    if stdout.Len() > 0 {
+			fmt.Printf("Command output:\n%s\n", stdout.String())
+    }
+    if stderr.Len() > 0 {
+			fmt.Printf("Error output:\n%s\n", stderr.String())
+    }
+    panic(fmt.Errorf("failed to start docker-compose: %w", err))
 	}
 
 	fmt.Println("BitSwan GitOps initialized successfully!")
