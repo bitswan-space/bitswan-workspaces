@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"bytes"
+	"syscall"
 
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
@@ -308,7 +309,20 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	// Change ownership of workspace folder recursively
 	chownCom := exec.Command("chown", "-R", "1000:1000", gitopsWorkspace)
 	if err := chownCom.Run(); err != nil {
-		return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
+    // Check if directory already has correct ownership
+    info, statErr := os.Stat(gitopsWorkspace)
+    if statErr != nil {
+			return fmt.Errorf("failed to change ownership and check status: %w\n %w", err, statErr)
+    }
+
+    if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+			// Check if UID is already 1000
+			if stat.Uid == 1000 {
+				// Directory already has correct ownership, ignore error
+			} else {
+				return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
+			}
+    }
 	}
 
 	// Add GitOps worktree
@@ -353,7 +367,20 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	chownCom = exec.Command("chown", "-R", "1000:1000", secretsDir)
 	if err := chownCom.Run(); err != nil {
-		return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+    // Check if directory already has correct ownership
+    info, statErr := os.Stat(gitopsWorkspace)
+    if statErr != nil {
+			return fmt.Errorf("failed to change ownership and check status: %w\n %w", err, statErr)
+    }
+
+    if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+			// Check if UID is already 1000
+			if stat.Uid == 1000 {
+				// Directory already has correct ownership, ignore error
+			} else {
+				return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+			}
+		}
 	}
 
 	gitopsImage := o.gitopsImage
