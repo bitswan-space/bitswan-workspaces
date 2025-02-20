@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -131,7 +132,18 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	if _, err := os.Stat(caddyConfig); os.IsNotExist(err) {
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+	resp, err := client.Get("http://localhost:2019")
+	caddy_running := true
+	if err != nil {
+		caddy_running = false
+	} else {
+		defer resp.Body.Close()
+	}
+
+	if !caddy_running {
 		fmt.Println("Setting up Caddy...")
 		if err := os.MkdirAll(caddyConfig, 0755); err != nil {
 			return fmt.Errorf("failed to create Caddy config directory: %w", err)
@@ -194,6 +206,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Println("Caddy started successfully!")
+	} else {
+		fmt.Println("A running instance of Caddy with admin found")
 	}
 
 	if o.certsDir != "" {
