@@ -19,7 +19,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorImage, certsPath, domain string, noIde bool) (string, string, error) {
+func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorImage, domain string, noIde bool) (string, string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -131,7 +131,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorI
 	return buf.String(), gitopsSecretToken, nil
 }
 
-func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, error) {
+func CreateCaddyDockerComposeFile(caddyPath, domain string) (string, error) {
 	caddyVolumes := []string{
 		caddyPath + "/Caddyfile:/etc/caddy/Caddyfile",
 		caddyPath + "/data:/data",
