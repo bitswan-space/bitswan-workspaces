@@ -189,7 +189,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			panic(fmt.Errorf("Failed to write Caddyfile: %w", err))
 		}
 
-		caddyDockerCompose, err := dockercompose.CreateCaddyDockerComposeFile(caddyConfig, o.certsDir, o.domain)
+		caddyDockerCompose, err := dockercompose.CreateCaddyDockerComposeFile(caddyConfig, o.domain)
 		if err != nil {
 			panic(fmt.Errorf("Failed to create Caddy docker-compose file: %w", err))
 		}
@@ -411,7 +411,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		gitopsName,
 		gitopsImage,
 		bitswanEditorImage,
-		o.certsDir,
 		o.domain,
 		o.noIde,
 	)
