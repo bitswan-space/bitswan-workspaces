@@ -20,6 +20,7 @@ type initOptions struct {
 	remoteRepo string
 	domain     string
 	certsDir   string
+	verbose   bool
 	noIde      bool
 }
 
@@ -52,6 +53,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.domain, "domain", "", "The domain to use for the Caddyfile")
 	cmd.Flags().StringVar(&o.certsDir, "certs-dir", "", "The directory where the certificates are located")
 	cmd.Flags().BoolVar(&o.noIde, "no-ide", false, "Do not start Bitswan Editor")
+	cmd.Flags().BoolVarP(&o.verbose, "verbose", "v", false, "Verbose output")
 
 	return cmd
 }
@@ -88,6 +90,23 @@ func checkNetworkExists(networkName string) (bool, error) {
 	return false, nil
 }
 
+func runCommandVerbose(cmd *exec.Cmd, verbose bool) (error) {
+	var err error
+	if verbose {
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		err = cmd.Run()
+
+		fmt.Println(stdout.String())
+		fmt.Println(stderr.String())
+	} else {
+		err = cmd.Run()
+	}
+	return err
+}
+
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	bitswanConfig := os.Getenv("HOME") + "/.config/bitswan/"
 
@@ -109,7 +128,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	} else {
 		createDockerNetworkCom := exec.Command("docker", "network", "create", "bitswan_network")
 		fmt.Println("Creating BitSwan Docker network...")
-		if err := createDockerNetworkCom.Run(); err != nil {
+		if err := runCommandVerbose(createDockerNetworkCom, o.verbose); err != nil {
 			if err.Error() == "exit status 1" {
 				fmt.Println("BitSwan Docker network already exists!")
 			} else {
@@ -192,7 +211,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Println("Starting Caddy...")
-		if err := caddyDockerComposeCom.Run(); err != nil {
+		if err := runCommandVerbose(caddyDockerComposeCom, o.verbose); err != nil {
 			// Combine stdout and stderr for complete output
 			fullOutput := stdout.String() + stderr.String()
 			return fmt.Errorf("Failed to start Caddy:\nError: %v\nOutput:\n%s", err, fullOutput)
@@ -281,7 +300,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		com := exec.Command("git", "clone", o.remoteRepo, gitopsWorkspace) //nolint:gosec
 
 		fmt.Println("Cloning remote repository...")
-		if err := com.Run(); err != nil {
+		if err := runCommandVerbose(com, o.verbose); err != nil {
 			panic(fmt.Errorf("Failed to clone remote repository: %w", err))
 		}
 		fmt.Println("Remote repository cloned!")
@@ -294,7 +313,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("Initializing git in workspace...")
 
-		if err := com.Run(); err != nil {
+		if err := runCommandVerbose(com, o.verbose); err != nil {
 			panic(fmt.Errorf("Failed to init git in workspace: %w", err))
 		}
 
@@ -303,7 +322,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Change ownership of workspace folder recursively
 	chownCom := exec.Command("chown", "-R", "1000:1000", gitopsWorkspace)
-	if err := chownCom.Run(); err != nil {
+	if err := runCommandVerbose(chownCom, o.verbose); err != nil {
 		return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
 	}
 
@@ -313,13 +332,13 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	worktreeAddCom.Dir = gitopsWorkspace
 
 	fmt.Println("Setting up GitOps worktree...")
-	if err := worktreeAddCom.Run(); err != nil {
+	if err := runCommandVerbose(worktreeAddCom, o.verbose); err != nil {
 		panic(fmt.Errorf("Failed to create GitOps worktree: exit code %w.", err))
 	}
 
 	// Add repo as safe directory
 	safeDirCom := exec.Command("git", "config", "--global", "--add", "safe.directory", gitopsWorktree)
-	if err := safeDirCom.Run(); err != nil {
+	if err := runCommandVerbose(safeDirCom, o.verbose); err != nil {
 		panic(fmt.Errorf("Failed to add safe directory: %w", err))
 	}
 
@@ -327,14 +346,14 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		// Create empty commit
 		emptyCommitCom := exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
 		emptyCommitCom.Dir = gitopsWorktree
-		if err := emptyCommitCom.Run(); err != nil {
+		if err := runCommandVerbose(emptyCommitCom, o.verbose); err != nil {
 			panic(fmt.Errorf("Failed to create empty commit: %w", err))
 		}
 
 		// Push to remote
 		setUpstreamCom := exec.Command("git", "push", "-u", "origin", gitopsName)
 		setUpstreamCom.Dir = gitopsWorktree
-		if err := setUpstreamCom.Run(); err != nil {
+		if err := runCommandVerbose(setUpstreamCom, o.verbose); err != nil {
 			panic(fmt.Errorf("Failed to set upstream: %w", err))
 		}
 	}
@@ -348,7 +367,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	chownCom = exec.Command("chown", "-R", "1000:1000", secretsDir)
-	if err := chownCom.Run(); err != nil {
+	if err := runCommandVerbose(chownCom, o.verbose); err != nil {
 		return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
 	}
 
@@ -402,7 +421,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	dockerComposeCom := exec.Command("docker", "compose", "-p", projectName, "up", "-d")
 
 	fmt.Println("Starting BitSwan GitOps...")
-	if err := dockerComposeCom.Run(); err != nil {
+	if err := runCommandVerbose(dockerComposeCom, o.verbose); err != nil {
 		panic(fmt.Errorf("failed to start docker-compose: %w", err))
 	}
 
