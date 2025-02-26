@@ -21,6 +21,7 @@ type initOptions struct {
 	remoteRepo string
 	domain     string
 	certsDir   string
+	mkCerts    bool
 	noIde      bool
 	gitopsImage string
 	editorImage string
@@ -55,6 +56,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.domain, "domain", "", "The domain to use for the Caddyfile")
 	cmd.Flags().StringVar(&o.certsDir, "certs-dir", "", "The directory where the certificates are located")
 	cmd.Flags().BoolVar(&o.noIde, "no-ide", false, "Do not start Bitswan Editor")
+	cmd.Flags().BoolVar(&o.mkCerts, "mkcerts", false, "Automatically generate local certificates using the mkcerts utility")
 	cmd.Flags().StringVar(&o.gitopsImage, "gitops-image", "", "Custom image for the gitops")
 	cmd.Flags().StringVar(&o.editorImage, "editor-image", "", "Custom image for the editor")
 
@@ -105,7 +107,7 @@ func changeOwnership(directory string, uid, gid uint32) error {
 
 		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
 			// Check if UID already matches desired UID
-			if stat.Uid == uid && stat.Gid == gid {
+			if stat.Uid == uid {
 				// Directory already has correct ownership, ignore error
 				return nil
 			}
@@ -115,6 +117,48 @@ func changeOwnership(directory string, uid, gid uint32) error {
 	return nil
 }
 
+func generateWildcardCerts(domain string) (string, error) {
+    // Create temporary directory
+    tempDir, err := os.MkdirTemp("", "certs-*")
+    if err != nil {
+        return "", fmt.Errorf("failed to create temp directory: %w", err)
+    }
+
+    // Store current working directory
+    originalDir, err := os.Getwd()
+    if err != nil {
+        return "", fmt.Errorf("failed to get current directory: %w", err)
+    }
+
+    // Change to temp directory
+    if err := os.Chdir(tempDir); err != nil {
+        return "", fmt.Errorf("failed to change to temp directory: %w", err)
+    }
+
+    // Ensure we change back to original directory when function returns
+    defer os.Chdir(originalDir)
+
+    // Generate wildcard certificate
+    wildcardDomain := "*." + domain
+    cmd := exec.Command("mkcert", wildcardDomain)
+    if err := cmd.Run(); err != nil {
+        return "", fmt.Errorf("failed to generate certificate: %w", err)
+    }
+
+    // Generate file names
+    keyFile := fmt.Sprintf("_wildcard.%s-key.pem", domain)
+    certFile := fmt.Sprintf("_wildcard.%s.pem", domain)
+
+    // Rename files
+    if err := os.Rename(keyFile, "private-key.pem"); err != nil {
+        return "", fmt.Errorf("failed to rename key file: %w", err)
+    }
+    if err := os.Rename(certFile, "full-chain.pem"); err != nil {
+        return "", fmt.Errorf("failed to rename cert file: %w", err)
+    }
+
+    return tempDir, nil
+}
 
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	bitswanConfig := os.Getenv("HOME") + "/.config/bitswan/"
@@ -238,7 +282,18 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Println("A running instance of Caddy with admin found")
 	}
 
-	if o.certsDir != "" {
+	inputCertsDir := o.certsDir
+
+	if o.mkCerts {
+    certDir, err := generateWildcardCerts(o.domain)
+    if err != nil {
+			return fmt.Errorf("Error generating certificates: %v\n", err)
+    }
+		inputCertsDir = certDir
+	}
+
+	if inputCertsDir != "" {
+		fmt.Println("Installing certs from", inputCertsDir)
 		caddyCertsDir := caddyConfig + "/certs"
 		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
 			if err := os.MkdirAll(caddyCertsDir, 0755); err != nil {
@@ -253,7 +308,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		certs, err := os.ReadDir(o.certsDir)
+		certs, err := os.ReadDir(inputCertsDir)
 		if err != nil {
 			panic(fmt.Errorf("Failed to read certs directory: %w", err))
 		}
@@ -263,7 +318,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			certPath := o.certsDir + "/" + cert.Name()
+			certPath := inputCertsDir + "/" + cert.Name()
 			newCertPath := certsDir + "/" + cert.Name()
 
 			bytes, err := os.ReadFile(certPath)
@@ -401,7 +456,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to create deployment directory: %w", err)
 	}
 
-	err = caddyapi.AddCaddyRecords(gitopsName, o.domain, o.certsDir != "", o.noIde)
+	err = caddyapi.AddCaddyRecords(gitopsName, o.domain, inputCertsDir != "", o.noIde)
 	if err != nil {
 		panic(fmt.Errorf("Failed to add Caddy records: %w", err))
 	}
