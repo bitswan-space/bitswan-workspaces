@@ -1,15 +1,15 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
-	"time"
-	"bytes"
 	"syscall"
+	"time"
 
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
@@ -18,11 +18,11 @@ import (
 )
 
 type initOptions struct {
-	remoteRepo string
-	domain     string
-	certsDir   string
-	mkCerts    bool
-	noIde      bool
+	remoteRepo  string
+	domain      string
+	certsDir    string
+	mkCerts     bool
+	noIde       bool
 	gitopsImage string
 	editorImage string
 }
@@ -102,7 +102,8 @@ func changeOwnership(directory string, uid, gid uint32) error {
 		// Check if directory already has correct ownership
 		info, statErr := os.Stat(directory)
 		if statErr != nil {
-			return fmt.Errorf("failed to change ownership and check status: %w\n %w", err, statErr)
+			return fmt.Errorf("failed to change ownership and check status: %w", fmt.Errorf("ownership error: %w\nstatus error: %v", err, statErr))
+
 		}
 
 		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
@@ -118,46 +119,46 @@ func changeOwnership(directory string, uid, gid uint32) error {
 }
 
 func generateWildcardCerts(domain string) (string, error) {
-    // Create temporary directory
-    tempDir, err := os.MkdirTemp("", "certs-*")
-    if err != nil {
-        return "", fmt.Errorf("failed to create temp directory: %w", err)
-    }
+	// Create temporary directory
+	tempDir, err := os.MkdirTemp("", "certs-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
 
-    // Store current working directory
-    originalDir, err := os.Getwd()
-    if err != nil {
-        return "", fmt.Errorf("failed to get current directory: %w", err)
-    }
+	// Store current working directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current directory: %w", err)
+	}
 
-    // Change to temp directory
-    if err := os.Chdir(tempDir); err != nil {
-        return "", fmt.Errorf("failed to change to temp directory: %w", err)
-    }
+	// Change to temp directory
+	if err := os.Chdir(tempDir); err != nil {
+		return "", fmt.Errorf("failed to change to temp directory: %w", err)
+	}
 
-    // Ensure we change back to original directory when function returns
-    defer os.Chdir(originalDir)
+	// Ensure we change back to original directory when function returns
+	defer os.Chdir(originalDir)
 
-    // Generate wildcard certificate
-    wildcardDomain := "*." + domain
-    cmd := exec.Command("mkcert", wildcardDomain)
-    if err := cmd.Run(); err != nil {
-        return "", fmt.Errorf("failed to generate certificate: %w", err)
-    }
+	// Generate wildcard certificate
+	wildcardDomain := "*." + domain
+	cmd := exec.Command("mkcert", wildcardDomain)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to generate certificate: %w", err)
+	}
 
-    // Generate file names
-    keyFile := fmt.Sprintf("_wildcard.%s-key.pem", domain)
-    certFile := fmt.Sprintf("_wildcard.%s.pem", domain)
+	// Generate file names
+	keyFile := fmt.Sprintf("_wildcard.%s-key.pem", domain)
+	certFile := fmt.Sprintf("_wildcard.%s.pem", domain)
 
-    // Rename files
-    if err := os.Rename(keyFile, "private-key.pem"); err != nil {
-        return "", fmt.Errorf("failed to rename key file: %w", err)
-    }
-    if err := os.Rename(certFile, "full-chain.pem"); err != nil {
-        return "", fmt.Errorf("failed to rename cert file: %w", err)
-    }
+	// Rename files
+	if err := os.Rename(keyFile, "private-key.pem"); err != nil {
+		return "", fmt.Errorf("failed to rename key file: %w", err)
+	}
+	if err := os.Rename(certFile, "full-chain.pem"); err != nil {
+		return "", fmt.Errorf("failed to rename cert file: %w", err)
+	}
 
-    return tempDir, nil
+	return tempDir, nil
 }
 
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
@@ -194,7 +195,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Init shared Caddy if not exists
 	caddyConfig := bitswanConfig + "caddy"
-  caddyCertsDir := caddyConfig + "/certs"
+	caddyCertsDir := caddyConfig + "/certs"
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -259,7 +260,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		// Create certs directory if it doesn't exist
 		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
 			if err := os.MkdirAll(caddyCertsDir, 0740); err != nil {
-        return fmt.Errorf("failed to create Caddy certs directory: %w", err)
+				return fmt.Errorf("failed to create Caddy certs directory: %w", err)
 			}
 		}
 
@@ -285,10 +286,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	inputCertsDir := o.certsDir
 
 	if o.mkCerts {
-    certDir, err := generateWildcardCerts(o.domain)
-    if err != nil {
+		certDir, err := generateWildcardCerts(o.domain)
+		if err != nil {
 			return fmt.Errorf("Error generating certificates: %v\n", err)
-    }
+		}
 		inputCertsDir = certDir
 	}
 
@@ -332,7 +333,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Println("Certs copied successfully!")
-}
+	}
 
 	// GitOps name
 	gitopsName := "gitops"
@@ -385,7 +386,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := changeOwnership(gitopsWorkspace, 1000, 1000); err != nil {
-    return err
+		return err
 	}
 
 	// Add GitOps worktree
@@ -429,7 +430,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := changeOwnership(secretsDir, 1000, 1000); err != nil {
-    return err
+		return err
 	}
 
 	gitopsImage := o.gitopsImage
@@ -495,14 +496,14 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Starting BitSwan GitOps...")
 	if err := dockerComposeCom.Run(); err != nil {
-    // Print the captured output
-    if stdout.Len() > 0 {
+		// Print the captured output
+		if stdout.Len() > 0 {
 			fmt.Printf("Command output:\n%s\n", stdout.String())
-    }
-    if stderr.Len() > 0 {
+		}
+		if stderr.Len() > 0 {
 			fmt.Printf("Error output:\n%s\n", stderr.String())
-    }
-    panic(fmt.Errorf("failed to start docker-compose: %w", err))
+		}
+		panic(fmt.Errorf("failed to start docker-compose: %w", err))
 	}
 
 	fmt.Println("BitSwan GitOps initialized successfully!")
