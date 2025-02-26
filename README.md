@@ -98,19 +98,10 @@ Add the CA certificate to Chrome by:
 3. Click "Import" and select the ca.crt file
 4. Check all trust settings and click "OK"
 
-Now generate the wildcard certificates:
-```
-mkcert "*.bitswan.localhost"
-
-mv _wildcard.bitswan.localhost-key.pem private-key.pem
-mv _wildcard.bitswan.localhost.pem full-chain.pem
-
-```
-
 And finally setup the gitops.
 
 ```sh
-bitswan-gitops-cli init --domain=bitswan.localhost --certs-dir=$PWD dev-gitops
+bitswan-gitops-cli init --domain=bitswan.localhost --mkcerts dev-gitops
 ```
 
 You should be able to access the editor in chrome via https://editor.localhost.
