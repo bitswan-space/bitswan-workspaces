@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-	"bytes"
 
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
@@ -320,12 +320,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Println("Git initialized in workspace!")
 	}
 
-	// Change ownership of workspace folder recursively
-	chownCom := exec.Command("chown", "-R", "1000:1000", gitopsWorkspace)
-	if err := runCommandVerbose(chownCom, o.verbose); err != nil {
-		return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
-	}
-
 	// Add GitOps worktree
 	gitopsWorktree := gitopsConfig + "/gitops"
 	worktreeAddCom := exec.Command("git", "worktree", "add", "--orphan", "-b", gitopsName, gitopsWorktree)
@@ -366,9 +360,19 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create secrets directory: %w", err)
 	}
 
-	chownCom = exec.Command("chown", "-R", "1000:1000", secretsDir)
-	if err := runCommandVerbose(chownCom, o.verbose); err != nil {
-		return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+	if(!o.noIde) {
+		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", secretsDir)
+		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+			return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+		}
+	}
+
+	// Change ownership of workspace folder recursively
+	if (!o.noIde) {
+		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", gitopsWorkspace)
+		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+			return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
+		}
 	}
 
 	gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
