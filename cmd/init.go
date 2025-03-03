@@ -17,12 +17,12 @@ import (
 )
 
 type initOptions struct {
-	remoteRepo string
-	domain     string
-	certsDir   string
-	verbose   bool
-	mkCerts    bool
-	noIde      bool
+	remoteRepo  string
+	domain      string
+	certsDir    string
+	verbose     bool
+	mkCerts     bool
+	noIde       bool
 	gitopsImage string
 	editorImage string
 }
@@ -96,7 +96,7 @@ func checkNetworkExists(networkName string) (bool, error) {
 	return false, nil
 }
 
-func runCommandVerbose(cmd *exec.Cmd, verbose bool) (error) {
+func runCommandVerbose(cmd *exec.Cmd, verbose bool) error {
 	var err error
 	if verbose {
 		var stdout, stderr bytes.Buffer
@@ -114,46 +114,46 @@ func runCommandVerbose(cmd *exec.Cmd, verbose bool) (error) {
 }
 
 func generateWildcardCerts(domain string) (string, error) {
-    // Create temporary directory
-    tempDir, err := os.MkdirTemp("", "certs-*")
-    if err != nil {
-        return "", fmt.Errorf("failed to create temp directory: %w", err)
-    }
+	// Create temporary directory
+	tempDir, err := os.MkdirTemp("", "certs-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
 
-    // Store current working directory
-    originalDir, err := os.Getwd()
-    if err != nil {
-        return "", fmt.Errorf("failed to get current directory: %w", err)
-    }
+	// Store current working directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current directory: %w", err)
+	}
 
-    // Change to temp directory
-    if err := os.Chdir(tempDir); err != nil {
-        return "", fmt.Errorf("failed to change to temp directory: %w", err)
-    }
+	// Change to temp directory
+	if err := os.Chdir(tempDir); err != nil {
+		return "", fmt.Errorf("failed to change to temp directory: %w", err)
+	}
 
-    // Ensure we change back to original directory when function returns
-    defer os.Chdir(originalDir)
+	// Ensure we change back to original directory when function returns
+	defer os.Chdir(originalDir)
 
-    // Generate wildcard certificate
-    wildcardDomain := "*." + domain
-    cmd := exec.Command("mkcert", wildcardDomain)
-    if err := cmd.Run(); err != nil {
-        return "", fmt.Errorf("failed to generate certificate: %w", err)
-    }
+	// Generate wildcard certificate
+	wildcardDomain := "*." + domain
+	cmd := exec.Command("mkcert", wildcardDomain)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to generate certificate: %w", err)
+	}
 
-    // Generate file names
-    keyFile := fmt.Sprintf("_wildcard.%s-key.pem", domain)
-    certFile := fmt.Sprintf("_wildcard.%s.pem", domain)
+	// Generate file names
+	keyFile := fmt.Sprintf("_wildcard.%s-key.pem", domain)
+	certFile := fmt.Sprintf("_wildcard.%s.pem", domain)
 
-    // Rename files
-    if err := os.Rename(keyFile, "private-key.pem"); err != nil {
-        return "", fmt.Errorf("failed to rename key file: %w", err)
-    }
-    if err := os.Rename(certFile, "full-chain.pem"); err != nil {
-        return "", fmt.Errorf("failed to rename cert file: %w", err)
-    }
+	// Rename files
+	if err := os.Rename(keyFile, "private-key.pem"); err != nil {
+		return "", fmt.Errorf("failed to rename key file: %w", err)
+	}
+	if err := os.Rename(certFile, "full-chain.pem"); err != nil {
+		return "", fmt.Errorf("failed to rename cert file: %w", err)
+	}
 
-    return tempDir, nil
+	return tempDir, nil
 }
 
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
@@ -190,7 +190,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Init shared Caddy if not exists
 	caddyConfig := bitswanConfig + "caddy"
-  caddyCertsDir := caddyConfig + "/certs"
+	caddyCertsDir := caddyConfig + "/certs"
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -255,7 +255,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		// Create certs directory if it doesn't exist
 		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
 			if err := os.MkdirAll(caddyCertsDir, 0740); err != nil {
-        return fmt.Errorf("failed to create Caddy certs directory: %w", err)
+				return fmt.Errorf("failed to create Caddy certs directory: %w", err)
 			}
 		}
 
@@ -281,10 +281,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	inputCertsDir := o.certsDir
 
 	if o.mkCerts {
-    certDir, err := generateWildcardCerts(o.domain)
-    if err != nil {
+		certDir, err := generateWildcardCerts(o.domain)
+		if err != nil {
 			return fmt.Errorf("Error generating certificates: %v\n", err)
-    }
+		}
 		inputCertsDir = certDir
 	}
 
@@ -420,7 +420,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create secrets directory: %w", err)
 	}
 
-	if(!o.noIde) {
+	if !o.noIde {
 		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", secretsDir)
 		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
 			return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
@@ -428,7 +428,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Change ownership of workspace folder recursively
-	if (!o.noIde) {
+	if !o.noIde {
 		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", gitopsWorkspace)
 		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
 			return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
