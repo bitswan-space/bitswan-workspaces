@@ -56,7 +56,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 
 	// GitOps route
 	routes = append(routes, Route{
-		Match: []Match{{Host: []string{domain}}},
+		Match: []Match{{Host: []string{fmt.Sprintf("%s-gitops.%s", gitopsName, domain)}}},
 		Handle: []Handle{{Handler: "subroute", Routes: []Route{
 			{
 				Handle: []Handle{{Handler: "reverse_proxy", Upstreams: []Upstream{
@@ -72,7 +72,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 		routes = append(routes, Route{
 			Match: []Match{
 				{
-					Host: []string{fmt.Sprintf("editor.%s", domain)},
+					Host: []string{fmt.Sprintf("%s-editor.%s", gitopsName, domain)},
 				},
 			},
 			Handle: []Handle{

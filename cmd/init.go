@@ -505,13 +505,13 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
 		}
 		fmt.Println("------------BITSWAN EDITOR INFO------------")
-		fmt.Printf("Bitswan Editor URL: https://editor.%s\n", o.domain)
+		fmt.Printf("Bitswan Editor URL: https://%s-editor.%s\n", gitopsName, o.domain)
 		fmt.Printf("Bitswan Editor Password: %s\n", editorPassword)
 	}
 
 	fmt.Println("------------GITOPS INFO------------")
 	fmt.Printf("GitOps ID: %s\n", gitopsName)
-	fmt.Printf("GitOps URL: https://%s\n", o.domain)
+	fmt.Printf("GitOps URL: https://%s-gitops.%s\n", gitopsName, o.domain)
 	fmt.Printf("GitOps Secret: %s\n", token)
 
 	return nil

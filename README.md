@@ -76,12 +76,12 @@ This is for setting up gitops locally without first setting up a domain name or 
 First add to /etc/hosts:
 
 ```sh
-      127.0.0.1 editor.bitswan.localhost
-      127.0.0.1 gitops.bitswan.localhost
+      127.0.0.1 bitswan-editor.bitswan.localhost
+      127.0.0.1 bitswan-gitops.bitswan.localhost
       127.0.0.1 testpipeline.bitswan.localhost
 ```
 
-Create some certs for these domains using a certificate authority you setup for yourself. 
+Create some certs for these domains using a certificate authority you setup for yourself.
 
 ```sh
 mkdir bitswan-certs
@@ -104,7 +104,7 @@ And finally setup the gitops.
 bitswan-gitops-cli init --domain=bitswan.localhost --mkcerts dev-gitops
 ```
 
-You should be able to access the editor in chrome via https://editor.localhost.
+You should be able to access the editor in chrome via [https://dev-gitops-editor.bitswan.localhost](https://dev-gitops-editor.bitswan.localhost).
 
 You can get the password to the editor using the command:
 

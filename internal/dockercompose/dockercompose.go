@@ -53,7 +53,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorI
 			"BITSWAN_GITOPS_DIR_HOST=" + gitopsPath,
 			"BITSWAN_GITOPS_ID=" + gitopsName,
 			"BITSWAN_GITOPS_SECRET=" + gitopsSecretToken,
-			"BITSWAN_GITOPS_DOMAIN=" + domain,
+			"BITSWAN_GITOPS_DOMAIN=" + fmt.Sprintf("%s-gitops.%s", gitopsName, domain),
 		},
 	}
 
