@@ -27,10 +27,20 @@ CLI app for managing bitswan-gitops deployments
 
 
 # Installation
-
+## Linux / WSL
 ```
 # Download and extract the binary in one command
 curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/latest/download/bitswan-gitops-cli_Linux_x86_64.tar.gz | tar -xz
+```
+## MacOS (Apple Sillicon M1+)
+```
+# Download and extract the binary in one command
+curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/latest/download/bitswan-gitops-cli_Darwin_arm64.tar.gz | tar -xz
+```
+## MacOS (Intel-based)
+```
+# Download and extract the binary in one command
+curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/latest/download/bitswan-gitops-cli_Darwin_x86_x64.tar.gz | tar -xz
 ```
 
 Move the binary to a directory in your PATH
