@@ -19,7 +19,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latestBitswanEditorVersion, certsPath, domain string, noIde bool) (string, string, error) {
+func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorImage, domain string, noIde bool) (string, string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -39,7 +39,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	gitopsSecretToken := uniuri.NewLen(64)
 
 	gitopsService := map[string]interface{}{
-		"image":    "bitswan/gitops:" + latestGitopsVersion,
+		"image":    gitopsImage,
 		"restart":  "always",
 		"networks": []string{"bitswan_network"},
 		"volumes": []string{
@@ -53,7 +53,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 			"BITSWAN_GITOPS_DIR_HOST=" + gitopsPath,
 			"BITSWAN_GITOPS_ID=" + gitopsName,
 			"BITSWAN_GITOPS_SECRET=" + gitopsSecretToken,
-			"BITSWAN_GITOPS_DOMAIN=" + domain,
+			"BITSWAN_GITOPS_DOMAIN=" + fmt.Sprintf("%s-gitops.%s", gitopsName, domain),
 		},
 	}
 
@@ -97,7 +97,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 
 	if !noIde {
 		bitswanEditor := map[string]interface{}{
-			"image":    "bitswan/bitswan-editor:" + latestBitswanEditorVersion,
+			"image":    bitswanEditorImage,
 			"restart":  "always",
 			"networks": []string{"bitswan_network"},
 			"environment": []string{
@@ -131,7 +131,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, latestGitopsVersion, latest
 	return buf.String(), gitopsSecretToken, nil
 }
 
-func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, error) {
+func CreateCaddyDockerComposeFile(caddyPath, domain string) (string, error) {
 	caddyVolumes := []string{
 		caddyPath + "/Caddyfile:/etc/caddy/Caddyfile",
 		caddyPath + "/data:/data",
@@ -172,12 +172,11 @@ func CreateCaddyDockerComposeFile(caddyPath, certsPath, domain string) (string, 
 	return buf.String(), nil
 }
 
-
 type EditorConfig struct {
 	BindAddress string `yaml:"bind-addr"`
-	Auth string `yaml:"auth"`
-	Password string `yaml:"password"`
-	Cert bool `yaml:"cert"`
+	Auth        string `yaml:"auth"`
+	Password    string `yaml:"password"`
+	Cert        bool   `yaml:"cert"`
 }
 
 func GetEditorPassword(projectName, gitopsName string) (string, error) {
