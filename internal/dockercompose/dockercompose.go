@@ -179,8 +179,8 @@ type EditorConfig struct {
 	Cert        bool   `yaml:"cert"`
 }
 
-func GetEditorPassword(projectName, gitopsName string) (string, error) {
-	getBitswanEditorPasswordCom := exec.Command("docker", "exec", projectName+"-bitswan-editor-"+gitopsName+"-1", "cat", "/home/coder/.config/code-server/config.yaml")
+func GetEditorPassword(workspaceName string) (string, error) {
+	getBitswanEditorPasswordCom := exec.Command("docker", "exec", workspaceName+"-site-bitswan-editor-"+workspaceName+"-1", "cat", "/home/coder/.config/code-server/config.yaml")
 	out, err := getBitswanEditorPasswordCom.Output()
 	if err != nil {
 		return "", fmt.Errorf("Failed to get Bitswan Editor password: %w", err)

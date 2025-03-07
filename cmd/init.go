@@ -563,7 +563,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Get Bitswan Editor password from container
 	if !o.noIde {
-		editorPassword, err := dockercompose.GetEditorPassword(projectName, gitopsName)
+		editorPassword, err := dockercompose.GetEditorPassword(gitopsName)
 		if err != nil {
 			panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
 		}
