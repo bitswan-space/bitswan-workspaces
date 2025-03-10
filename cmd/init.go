@@ -323,6 +323,13 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Println("A running instance of Caddy with admin found")
 	}
 
+	// Secure that --local flag is not used with --set-hosts or --mkcerts
+	if o.local {
+		if o.setHosts || o.mkCerts {
+			panic(fmt.Errorf("Cannot use --local flag with --set-hosts or --mkcerts"))
+		}
+	}
+
 	inputCertsDir := o.certsDir
 
 	if o.mkCerts {
