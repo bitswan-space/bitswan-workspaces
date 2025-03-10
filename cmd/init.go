@@ -24,6 +24,7 @@ type initOptions struct {
 	mkCerts     bool
 	noIde       bool
 	setHosts    bool
+	local       bool
 	gitopsImage string
 	editorImage string
 }
@@ -60,6 +61,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&o.verbose, "verbose", "v", false, "Verbose output")
 	cmd.Flags().BoolVar(&o.mkCerts, "mkcerts", false, "Automatically generate local certificates using the mkcerts utility")
 	cmd.Flags().BoolVar(&o.setHosts, "set-hosts", false, "Automatically set hosts to /etc/hosts file")
+	cmd.Flags().BoolVar(&o.local, "local", false, "Automatically use flag --set-hosts and --mkcerts")
 	cmd.Flags().StringVar(&o.gitopsImage, "gitops-image", "", "Custom image for the gitops")
 	cmd.Flags().StringVar(&o.editorImage, "editor-image", "", "Custom image for the editor")
 
@@ -156,6 +158,47 @@ func generateWildcardCerts(domain string) (string, error) {
 	}
 
 	return tempDir, nil
+}
+
+func setHosts(gitopsName string, o *initOptions) error {
+	fmt.Println("Checking if the user has permission to write to /etc/hosts...")
+	fileInfo, err := os.Stat("/etc/hosts")
+	if err != nil {
+		return fmt.Errorf("error: %w", err)
+	}
+
+	// Check if the current user can write to the file
+	if fileInfo.Mode().Perm()&0200 == 0 {
+		return fmt.Errorf("user does not have permission to write to /etc/hosts")
+	}
+	fmt.Println("File /etc/hosts is writable")
+
+	hostsEntries := []string{
+		"127.0.0.1 " + gitopsName + "-gitops.bitswan.local",
+	}
+
+	if !o.noIde {
+		hostsEntries = append(hostsEntries, "127.0.0.1 "+gitopsName+"-editor.bitswan.local")
+	}
+
+	// Check if the entries already exist in /etc/hosts
+	for _, entry := range hostsEntries {
+		if exec.Command("grep", "-wq", entry, "/etc/hosts").Run() == nil {
+			return fmt.Errorf("hosts already set in /etc/hosts")
+		}
+	}
+
+	fmt.Println("Adding record to /etc/hosts...")
+	for _, entry := range hostsEntries {
+		cmdStr := "echo '" + entry + "' | sudo tee -a /etc/hosts"
+		chownCom := exec.Command("sh", "-c", cmdStr)
+		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+			return fmt.Errorf("unable to write into '/etc/hosts'. \n Please add the records manually")
+		}
+	}
+
+	fmt.Println("Records added to /etc/hosts successfully!")
+	return nil
 }
 
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
@@ -439,43 +482,24 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Set hosts to /etc/hosts file
 	if o.setHosts {
-		fmt.Println("Checking if the user has permission to write to /etc/hosts...")
-		fileInfo, err := os.Stat("/etc/hosts")
+		err := setHosts(gitopsName, o)
 		if err != nil {
-			return fmt.Errorf("error: %w", err)
+			fmt.Println(err)
+		}
+	}
+
+	// Set hosts to /etc/hosts file and generate local certificates
+	if o.local {
+		err := setHosts(gitopsName, o)
+		if err != nil {
+			return fmt.Errorf("Error setting records to /etc/hosts: %v\n", err)
 		}
 
-		// Check if the current user can write to the file
-		if fileInfo.Mode().Perm()&0200 == 0 {
-			return fmt.Errorf("user does not have permission to write to /etc/hosts")
+		certDir, err := generateWildcardCerts(o.domain)
+		if err != nil {
+			return fmt.Errorf("Error generating certificates: %v\n", err)
 		}
-		fmt.Println("File /etc/hosts is writable")
-
-		hostsEntries := []string{
-			"127.0.0.1 " + gitopsName + "-gitops.bitswan.local",
-		}
-
-		if !o.noIde {
-			hostsEntries = append(hostsEntries, "127.0.0.1 "+gitopsName+"-editor.bitswan.local")
-		}
-
-		// Check if the entries already exist in /etc/hosts
-		for _, entry := range hostsEntries {
-			if exec.Command("grep", "-wq", entry, "/etc/hosts").Run() == nil {
-				return fmt.Errorf("hosts already set in /etc/hosts")
-			}
-		}
-
-		fmt.Println("Adding record to /etc/hosts...")
-		for _, entry := range hostsEntries {
-			cmdStr := "echo '" + entry + "' | sudo tee -a /etc/hosts"
-			chownCom := exec.Command("sh", "-c", cmdStr)
-			if err := runCommandVerbose(chownCom, o.verbose); err != nil {
-				return fmt.Errorf("unable to write into '/etc/hosts'. \n Please add the records manually")
-			}
-		}
-
-		fmt.Println("Records added to /etc/hosts successfully!")
+		inputCertsDir = certDir
 	}
 
 	gitopsImage := o.gitopsImage
