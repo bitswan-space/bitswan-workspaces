@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
-	"path/filepath"
-	"gopkg.in/yaml.v3"
 
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
@@ -512,9 +512,18 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !o.noIde {
+		// Create codeserver config directory
+		codeserverConfigDir := gitopsConfig + "/codeserver-config"
+		if err := os.MkdirAll(codeserverConfigDir, 0700); err != nil {
+			return fmt.Errorf("failed to create codeserver config directory: %w", err)
+		}
 		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", secretsDir)
 		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
 			return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+		}
+		chownCom = exec.Command("sudo", "chown", "-R", "1000:1000", codeserverConfigDir)
+		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+			return fmt.Errorf("failed to change ownership of codeserver config folder: %w", err)
 		}
 	}
 
@@ -604,6 +613,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Get Bitswan Editor password from container
 	if !o.noIde {
+		// First, wait for the editor service to be ready by streaming logs
+		if err := dockercompose.WaitForEditorReady(gitopsName); err != nil {
+			panic(fmt.Errorf("failed to wait for editor to be ready: %w", err))
+		}
 		editorPassword, err := dockercompose.GetEditorPassword(gitopsName)
 		if err != nil {
 			panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
