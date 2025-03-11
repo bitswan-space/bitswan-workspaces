@@ -191,8 +191,8 @@ func setHosts(gitopsName string, o *initOptions) error {
 	fmt.Println("Adding record to /etc/hosts...")
 	for _, entry := range hostsEntries {
 		cmdStr := "echo '" + entry + "' | sudo tee -a /etc/hosts"
-		chownCom := exec.Command("sh", "-c", cmdStr)
-		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+		addHostsCom := exec.Command("sh", "-c", cmdStr)
+		if err := runCommandVerbose(addHostsCom, o.verbose); err != nil {
 			return fmt.Errorf("unable to write into '/etc/hosts'. \n Please add the records manually")
 		}
 	}
@@ -324,10 +324,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Secure that --local flag is not used with --set-hosts or --mkcerts
-	if o.local {
-		if o.setHosts || o.mkCerts {
-			panic(fmt.Errorf("Cannot use --local flag with --set-hosts or --mkcerts"))
-		}
+	if o.local && (o.setHosts || o.mkCerts) {
+		panic(fmt.Errorf("Cannot use --local flag with --set-hosts or --mkcerts"))
 	}
 
 	inputCertsDir := o.certsDir
@@ -491,7 +489,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	if o.setHosts {
 		err := setHosts(gitopsName, o)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("\033[33m%s\033[0m\n", err)
 		}
 	}
 
@@ -499,7 +497,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	if o.local {
 		err := setHosts(gitopsName, o)
 		if err != nil {
-			return fmt.Errorf("Error setting records to /etc/hosts: %v\n", err)
+			fmt.Printf("\033[33m%s\033[0m\n", err)
 		}
 
 		certDir, err := generateWildcardCerts(o.domain)
