@@ -328,6 +328,11 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		panic(fmt.Errorf("Cannot use --local flag with --set-hosts or --mkcerts"))
 	}
 
+	if o.local {
+		o.setHosts = true
+		o.mkCerts = true
+	}
+
 	inputCertsDir := o.certsDir
 
 	if o.mkCerts {
@@ -491,20 +496,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			fmt.Printf("\033[33m%s\033[0m\n", err)
 		}
-	}
-
-	// Set hosts to /etc/hosts file and generate local certificates
-	if o.local {
-		err := setHosts(gitopsName, o)
-		if err != nil {
-			fmt.Printf("\033[33m%s\033[0m\n", err)
-		}
-
-		certDir, err := generateWildcardCerts(o.domain)
-		if err != nil {
-			return fmt.Errorf("Error generating certificates: %v\n", err)
-		}
-		inputCertsDir = certDir
 	}
 
 	gitopsImage := o.gitopsImage
