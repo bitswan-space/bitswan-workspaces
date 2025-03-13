@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
-	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
@@ -570,27 +572,28 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create secrets directory: %w", err)
 	}
 
+	hostOsTmp := runtime.GOOS
+
 	if !o.noIde {
 		// Create codeserver config directory
 		codeserverConfigDir := gitopsConfig + "/codeserver-config"
 		if err := os.MkdirAll(codeserverConfigDir, 0700); err != nil {
 			return fmt.Errorf("failed to create codeserver config directory: %w", err)
 		}
-		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", secretsDir)
-		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
-			return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
-		}
-		chownCom = exec.Command("sudo", "chown", "-R", "1000:1000", codeserverConfigDir)
-		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
-			return fmt.Errorf("failed to change ownership of codeserver config folder: %w", err)
-		}
-	}
 
-	// Change ownership of workspace folder recursively
-	if !o.noIde {
-		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", gitopsWorkspace)
-		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
-			return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
+		if hostOsTmp == "linux" {
+			chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", secretsDir)
+			if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+				return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+			}
+			chownCom = exec.Command("sudo", "chown", "-R", "1000:1000", codeserverConfigDir)
+			if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+				return fmt.Errorf("failed to change ownership of codeserver config folder: %w", err)
+			}
+			chownCom = exec.Command("sudo", "chown", "-R", "1000:1000", gitopsWorkspace)
+			if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+				return fmt.Errorf("failed to change ownership of workspace folder: %w", err)
+			}
 		}
 	}
 
