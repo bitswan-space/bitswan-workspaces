@@ -8,10 +8,10 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
-	"path/filepath"
 
 	"github.com/dchest/uniuri"
 	"gopkg.in/yaml.v3"
