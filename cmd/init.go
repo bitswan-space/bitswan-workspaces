@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -201,6 +203,40 @@ func setHosts(gitopsName string, o *initOptions) error {
 	return nil
 }
 
+// After displaying the information, save it to metadata.yaml
+func saveMetadata(gitopsConfig, gitopsName, domain string, noIde bool) error {
+	// Create metadata structure
+	type Metadata struct {
+		Domain    string `yaml:"domain"`
+		EditorURL string `yaml:"editor-url,omitempty"`
+		GitopsURL string `yaml:"gitops-url"`
+	}
+
+	metadata := Metadata{
+		Domain:    domain,
+		GitopsURL: fmt.Sprintf("https://%s-gitops.%s", gitopsName, domain),
+	}
+
+	// Add editor URL if IDE is enabled
+	if !noIde {
+		metadata.EditorURL = fmt.Sprintf("https://%s-editor.%s", gitopsName, domain)
+	}
+
+	// Marshal to YAML
+	yamlData, err := yaml.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	// Write to file
+	metadataPath := filepath.Join(gitopsConfig, "metadata.yaml")
+	if err := os.WriteFile(metadataPath, yamlData, 0644); err != nil {
+		return fmt.Errorf("failed to write metadata file: %w", err)
+	}
+
+	return nil
+}
+
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	bitswanConfig := os.Getenv("HOME") + "/.config/bitswan/"
 
@@ -391,7 +427,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		gitopsName = args[0]
 	}
 
-	gitopsConfig := bitswanConfig + gitopsName
+	gitopsConfig := bitswanConfig + "workspaces/" + gitopsName
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -476,9 +512,18 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !o.noIde {
+		// Create codeserver config directory
+		codeserverConfigDir := gitopsConfig + "/codeserver-config"
+		if err := os.MkdirAll(codeserverConfigDir, 0700); err != nil {
+			return fmt.Errorf("failed to create codeserver config directory: %w", err)
+		}
 		chownCom := exec.Command("sudo", "chown", "-R", "1000:1000", secretsDir)
 		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
 			return fmt.Errorf("failed to change ownership of secrets folder: %w", err)
+		}
+		chownCom = exec.Command("sudo", "chown", "-R", "1000:1000", codeserverConfigDir)
+		if err := runCommandVerbose(chownCom, o.verbose); err != nil {
+			return fmt.Errorf("failed to change ownership of codeserver config folder: %w", err)
 		}
 	}
 
@@ -561,9 +606,18 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("BitSwan GitOps initialized successfully!")
 
+	// Save metadata to file
+	if err := saveMetadata(gitopsConfig, gitopsName, o.domain, o.noIde); err != nil {
+		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
+	}
+
 	// Get Bitswan Editor password from container
 	if !o.noIde {
-		editorPassword, err := dockercompose.GetEditorPassword(projectName, gitopsName)
+		// First, wait for the editor service to be ready by streaming logs
+		if err := dockercompose.WaitForEditorReady(gitopsName); err != nil {
+			panic(fmt.Errorf("failed to wait for editor to be ready: %w", err))
+		}
+		editorPassword, err := dockercompose.GetEditorPassword(gitopsName)
 		if err != nil {
 			panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
 		}
