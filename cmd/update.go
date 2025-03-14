@@ -112,7 +112,7 @@ func updateGitops(gitopsName string, o *updateOptions) error {
 	// 3. Restart gitops and editor services
 	fmt.Println("Restarting services...")
 	dockerComposePath := filepath.Join(gitopsConfig, "deployment")
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("cd %s && docker-compose down && docker-compose up -d", dockerComposePath))
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("cd %s && docker-compose down && docker-compose up -d --remove-orphans", dockerComposePath))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
