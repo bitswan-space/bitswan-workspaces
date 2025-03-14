@@ -23,7 +23,7 @@ func newUpdateCmd() *cobra.Command {
 			fmt.Printf("Updating Docker image: %s...\n", gitopsName)
 			err := updateGitops(gitopsName)
 			if err != nil {
-				fmt.Printf("Error updating Docker image: %v\n", err)
+				fmt.Errorf("Error updating gitops: %v\n", err)
 				return
 			}
 			fmt.Println("Docker image updated successfully!")
@@ -48,8 +48,18 @@ func getLatestImagesVersion() (string, string) {
 }
 
 func updateGitops(gitopsName string) error {
+	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
+
+	repoPath := filepath.Join(bitswanPath, "bitswan-src")
+	// 1. Create or update examples directory
+	err := EnsureExamples(repoPath, true)
+	if err != nil {
+		return fmt.Errorf("Failed to download examples: %w", err)
+	}
+
+	// 2. Update Docker images and docker-compose file
 	gitopsImage, bitswanEditorImage := getLatestImagesVersion()
-	gitopsConfig := os.Getenv("HOME") + "/.config/bitswan/" + "workspaces/" + gitopsName
+	gitopsConfig := filepath.Join(bitswanPath, "workspaces/", gitopsName)
 
 	// Get the domain from the file `~/.config/bitswan/<gitops-name>/deployment/domain`
 	dataPath := filepath.Join(os.Getenv("HOME"), ".config", "bitswan", "workspaces", gitopsName, "metadata.yaml")
@@ -74,6 +84,8 @@ func updateGitops(gitopsName string) error {
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == ""
 	dockercompose.CreateDockerComposeFile(gitopsConfig, gitopsName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
+
+	// 3. Restart gitops and editor services
 
 	return nil
 }
