@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
@@ -20,13 +21,13 @@ func newUpdateCmd() *cobra.Command {
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			gitopsName := args[0]
-			fmt.Printf("Updating Docker image: %s...\n", gitopsName)
+			fmt.Printf("Updating Gitops: %s...\n", gitopsName)
 			err := updateGitops(gitopsName)
 			if err != nil {
 				fmt.Errorf("Error updating gitops: %v\n", err)
 				return
 			}
-			fmt.Println("Docker image updated successfully!")
+			fmt.Println("Gitops %s updated successfully!", gitopsName)
 		},
 	}
 }
@@ -52,12 +53,15 @@ func updateGitops(gitopsName string) error {
 
 	repoPath := filepath.Join(bitswanPath, "bitswan-src")
 	// 1. Create or update examples directory
+	fmt.Println("Ensuring examples are up to date...")
 	err := EnsureExamples(repoPath, true)
 	if err != nil {
 		return fmt.Errorf("Failed to download examples: %w", err)
 	}
+	fmt.Println("Examples are up to date!")
 
 	// 2. Update Docker images and docker-compose file
+	fmt.Println("Updating Docker images and docker-compose file...")
 	gitopsImage, bitswanEditorImage := getLatestImagesVersion()
 	gitopsConfig := filepath.Join(bitswanPath, "workspaces/", gitopsName)
 
@@ -84,8 +88,16 @@ func updateGitops(gitopsName string) error {
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == ""
 	dockercompose.CreateDockerComposeFile(gitopsConfig, gitopsName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
+	fmt.Println("Docker images and docker-compose file updated!")
 
 	// 3. Restart gitops and editor services
+	fmt.Println("Restarting services...")
+	dockerComposePath := filepath.Join(gitopsConfig, "deployment", "docker-compose")
+	err = exec.Command(dockerComposePath, "up").Run()
+	if err != nil {
+		return fmt.Errorf("Failed to stop the services: %w", err)
+	}
+	fmt.Println("Services restarted!")
 
 	return nil
 }
