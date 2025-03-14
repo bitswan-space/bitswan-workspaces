@@ -24,10 +24,10 @@ func newUpdateCmd() *cobra.Command {
 			fmt.Printf("Updating Gitops: %s...\n", gitopsName)
 			err := updateGitops(gitopsName)
 			if err != nil {
-				fmt.Errorf("Error updating gitops: %v\n", err)
+				fmt.Errorf("Error updating gitops: %w", err)
 				return
 			}
-			fmt.Println("Gitops %s updated successfully!", gitopsName)
+			fmt.Printf("Gitops %s updated successfully!\n", gitopsName)
 		},
 	}
 }
@@ -70,7 +70,7 @@ func updateGitops(gitopsName string) error {
 
 	data, err := os.ReadFile(dataPath)
 	if err != nil {
-		return fmt.Errorf("Failed to read metadata.yaml:", err)
+		return fmt.Errorf("Failed to read metadata.yaml: %w", err)
 	}
 
 	// Config represents the structure of the YAML file
@@ -82,7 +82,7 @@ func updateGitops(gitopsName string) error {
 	}
 
 	if err := yaml.Unmarshal(data, &metadata); err != nil {
-		return fmt.Errorf("Failed to unmarshal metadata.yaml:", err)
+		return fmt.Errorf("Failed to unmarshal metadata.yaml: %w", err)
 	}
 
 	// Rewrite the docker-compose file
