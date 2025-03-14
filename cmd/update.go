@@ -111,10 +111,21 @@ func updateGitops(gitopsName string, o *updateOptions) error {
 
 	// 3. Restart gitops and editor services
 	fmt.Println("Restarting services...")
-	dockerComposePath := filepath.Join(gitopsConfig, "deployment", "docker-compose")
-	err = exec.Command(dockerComposePath, "up").Run()
-	if err != nil {
-		return fmt.Errorf("Failed to stop the services: %w", err)
+	dockerComposePath := filepath.Join(gitopsConfig, "deployment")
+
+	commands := [][]string{
+		{"docker-compose", "down"},
+		{"docker-compose", "up", "-d", "--remove-orphans"},
+	}
+
+	for _, args := range commands {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dockerComposePath
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("Failed to execute %v: %w", args, err)
+		}
 	}
 	fmt.Println("Services restarted!")
 
