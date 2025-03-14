@@ -13,16 +13,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type updateOptions struct {
+	gitopsImage string
+	editorImage string
+}
+
 func newUpdateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:          "update <gitops-name>",
+	o := &updateOptions{}
+	cmd := &cobra.Command{
+		Use:          "update [flags] <gitops-name>",
 		Short:        "bitswan-gitops update",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			gitopsName := args[0]
 			fmt.Printf("Updating Gitops: %s...\n", gitopsName)
-			err := updateGitops(gitopsName)
+			err := updateGitops(gitopsName, o)
 			if err != nil {
 				fmt.Errorf("Error updating gitops: %w", err)
 				return
@@ -30,25 +36,37 @@ func newUpdateCmd() *cobra.Command {
 			fmt.Printf("Gitops %s updated successfully!\n", gitopsName)
 		},
 	}
+
+	cmd.Flags().StringVar(&o.gitopsImage, "gitops-image", "", "Custom image for the gitops")
+	cmd.Flags().StringVar(&o.editorImage, "editor-image", "", "Custom image for the editor")
+
+	return cmd
 }
 
-func getLatestImagesVersion() (string, string) {
-	gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
-	if err != nil {
-		panic(fmt.Errorf("failed to get latest BitSwan GitOps version: %w", err))
+func getImagesVersion(o *updateOptions) (string, string) {
+	getImage := func(url, customVersion string) (string, error) {
+		if customVersion != "" {
+			return dockerhub.GetDesiredDockerHubVersion(url, customVersion)
+		}
+		return dockerhub.GetLatestDockerHubVersion(url)
 	}
-	gitopsImage := "bitswan/gitops:" + gitopsLatestVersion
 
-	bitswanEditorLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/bitswan-editor/tags/")
+	gitopsVersion, err := getImage("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/", o.gitopsImage)
 	if err != nil {
-		panic(fmt.Errorf("failed to get latest BitSwan Editor version: %w", err))
+		panic(fmt.Errorf("failed to get BitSwan GitOps version: %w", err))
 	}
-	bitswanEditorImage := "bitswan/bitswan-editor:" + bitswanEditorLatestVersion
+	gitopsImage := "bitswan/gitops:" + gitopsVersion
+
+	editorVersion, err := getImage("https://hub.docker.com/v2/repositories/bitswan/bitswan-editor/tags/", o.editorImage)
+	if err != nil {
+		panic(fmt.Errorf("failed to get BitSwan Editor version: %w", err))
+	}
+	bitswanEditorImage := "bitswan/bitswan-editor:" + editorVersion
 
 	return gitopsImage, bitswanEditorImage
 }
 
-func updateGitops(gitopsName string) error {
+func updateGitops(gitopsName string, o *updateOptions) error {
 	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
 
 	repoPath := filepath.Join(bitswanPath, "bitswan-src")
@@ -62,7 +80,7 @@ func updateGitops(gitopsName string) error {
 
 	// 2. Update Docker images and docker-compose file
 	fmt.Println("Updating Docker images and docker-compose file...")
-	gitopsImage, bitswanEditorImage := getLatestImagesVersion()
+	gitopsImage, bitswanEditorImage := getImagesVersion(o)
 	gitopsConfig := filepath.Join(bitswanPath, "workspaces/", gitopsName)
 
 	// Get the domain from the file `~/.config/bitswan/<gitops-name>/deployment/domain`
@@ -87,7 +105,16 @@ func updateGitops(gitopsName string) error {
 
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == ""
-	dockercompose.CreateDockerComposeFile(gitopsConfig, gitopsName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
+	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, gitopsName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
+	if err != nil {
+		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
+	}
+
+	dockerComposeFilePath := filepath.Join(gitopsConfig, "deployment", "/docker-compose.yml")
+	if err := os.WriteFile(dockerComposeFilePath, []byte(compose), 0755); err != nil {
+		panic(fmt.Errorf("Failed to write docker-compose file: %w", err))
+	}
+
 	fmt.Println("Docker images and docker-compose file updated!")
 
 	// 3. Restart gitops and editor services
