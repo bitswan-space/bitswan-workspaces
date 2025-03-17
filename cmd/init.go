@@ -74,11 +74,6 @@ func newInitCmd() *cobra.Command {
 	return cmd
 }
 
-func cleanup(dir string) {
-	if err := os.RemoveAll(dir); err != nil {
-		fmt.Printf("Failed to clean up directory %s: %s\n", dir, err)
-	}
-}
 
 func checkNetworkExists(networkName string) (bool, error) {
 	// Run docker network ls command with JSON format
@@ -391,8 +386,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
-			fmt.Println("Failed to start Caddy. Cleaning up...")
-			cleanup(caddyConfig)
+			fmt.Println("Failed to start Caddy.")
 		}
 	}()
 
@@ -547,8 +541,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
-			fmt.Println("Failed to initialize GitOps. Cleaning up...")
-			cleanup(gitopsConfig)
+			fmt.Println("Failed to initialize GitOps.")
 		}
 	}()
 
