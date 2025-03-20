@@ -114,7 +114,7 @@ changelog:
 release:
   github:
     owner: bitswan-space
-    name: bitswan-gitops-cli
+    name: bitswan-workspaces
   draft: false
   prerelease: auto
   mode: replace
@@ -123,4 +123,4 @@ release:
 
     For more information, please see the [documentation](https://github.com/bitswan-space/bitswan-workspaces/blob/main/README.md).
   footer: |
-    **Full Changelog**: https://github.com/bitswan-space/bitswan-gitops-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/bitswan-space/bitswan-workspaces/compare/{{ .PreviousTag }}...{{ .Tag }}
