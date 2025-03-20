@@ -28,12 +28,6 @@ archives:
     id: bitswan-gitops-cli
     builds:
       - bitswan-gitops-cli
-    name_template: >-
-      bitswan-workspaces_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
     format_overrides:
       - goos: windows
         format: zip
@@ -47,12 +41,6 @@ nfpms:
   -
     id: bitswan-gitops-cli
     package_name: bitswan-gitops-cli
-    file_name_template: >-
-      bitswan-workspaces_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
     builds:
       - bitswan-gitops-cli
     vendor: bitswan-space
