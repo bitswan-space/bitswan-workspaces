@@ -124,5 +124,3 @@ release:
     ## BitSwan GitOps CLI ({{ .Version }})
 
     For more information, please see the [documentation](https://github.com/bitswan-space/bitswan-workspaces/blob/main/README.md).
-  footer: |
-    **Full Changelog**: https://github.com/bitswan-space/bitswan-workspaces/compare/{{ .PreviousTag }}...{{ .Tag }}
