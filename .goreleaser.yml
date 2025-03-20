@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
 env:
@@ -10,9 +11,11 @@ before:
     - ./scripts/completions.sh
 
 builds:
-  -
+  - id: bitswan-gitops-cli
     binary: bitswan-gitops-cli
-    ldflags: -s -w -X main.version={{ .Version }}
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
     goos:
       - linux
       - darwin
@@ -24,10 +27,10 @@ builds:
     mod_timestamp: '{{ .CommitTimestamp }}'
 
 archives:
-  -
-    id: bitswan-gitops-cli
+  - id: bitswan-gitops-cli
     builds:
       - bitswan-gitops-cli
+    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
@@ -38,8 +41,7 @@ archives:
       - manpages/*
 
 nfpms:
-  -
-    id: bitswan-gitops-cli
+  - id: bitswan-gitops-cli
     package_name: bitswan-gitops-cli
     builds:
       - bitswan-gitops-cli
@@ -69,6 +71,7 @@ nfpms:
 
 checksum:
   name_template: "checksums.txt"
+  algorithm: sha256
 
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
