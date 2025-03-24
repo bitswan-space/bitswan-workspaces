@@ -3,7 +3,7 @@ module github.com/bitswan-space/bitswan-gitops-cli
 go 1.21
 
 require (
-	github.com/daixiang0/gci v0.13.5
+	github.com/daixiang0/gci v0.13.6
 	github.com/dchest/uniuri v1.2.0
 	github.com/go-critic/go-critic v0.11.0
 	github.com/golangci/golangci-lint v1.56.1
