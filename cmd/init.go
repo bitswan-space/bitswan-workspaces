@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"io"
+	"sync"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -72,11 +74,6 @@ func newInitCmd() *cobra.Command {
 	return cmd
 }
 
-func cleanup(dir string) {
-	if err := os.RemoveAll(dir); err != nil {
-		fmt.Printf("Failed to clean up directory %s: %s\n", dir, err)
-	}
-}
 
 func checkNetworkExists(networkName string) (bool, error) {
 	// Run docker network ls command with JSON format
@@ -105,21 +102,73 @@ func checkNetworkExists(networkName string) (bool, error) {
 }
 
 func runCommandVerbose(cmd *exec.Cmd, verbose bool) error {
-	var err error
-	if verbose {
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
+    var stdoutBuf, stderrBuf bytes.Buffer
 
-		err = cmd.Run()
+    if verbose {
+        // Set up pipes for real-time streaming
+        stdoutPipe, err := cmd.StdoutPipe()
+        if err != nil {
+            return fmt.Errorf("failed to create stdout pipe: %w", err)
+        }
 
-		fmt.Println(stdout.String())
-		fmt.Println(stderr.String())
-	} else {
-		err = cmd.Run()
-	}
-	return err
+        stderrPipe, err := cmd.StderrPipe()
+        if err != nil {
+            return fmt.Errorf("failed to create stderr pipe: %w", err)
+        }
+
+        // Create multi-writers to both stream and capture output
+        stdoutWriter := io.MultiWriter(os.Stdout, &stdoutBuf)
+        stderrWriter := io.MultiWriter(os.Stderr, &stderrBuf)
+
+        // Start the command
+        if err := cmd.Start(); err != nil {
+            return fmt.Errorf("failed to start command: %w", err)
+        }
+
+        // Copy stdout and stderr in separate goroutines
+        var wg sync.WaitGroup
+        wg.Add(2)
+
+        go func() {
+            defer wg.Done()
+            io.Copy(stdoutWriter, stdoutPipe)
+        }()
+
+        go func() {
+            defer wg.Done()
+            io.Copy(stderrWriter, stderrPipe)
+        }()
+
+        // Wait for all output to be processed
+        wg.Wait()
+
+        // Wait for command to complete
+        err = cmd.Wait()
+        return err
+    } else {
+        // Not verbose, just capture output for potential error reporting
+        cmd.Stdout = &stdoutBuf
+        cmd.Stderr = &stderrBuf
+
+        err := cmd.Run()
+
+        // If command failed, print the captured output
+        if err != nil {
+            if stdoutBuf.Len() > 0 {
+                fmt.Println("Command stdout:")
+                fmt.Println(stdoutBuf.String())
+            }
+
+            if stderrBuf.Len() > 0 {
+                fmt.Println("Command stderr:")
+                fmt.Println(stderrBuf.String())
+            }
+        }
+
+        return err
+    }
 }
+
 
 // EnsureExamples clones the BitSwan repository if it doesn't exist,
 // or updates it if it already exists
@@ -337,8 +386,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
-			fmt.Println("Failed to start Caddy. Cleaning up...")
-			cleanup(caddyConfig)
+			fmt.Println("Failed to start Caddy.")
 		}
 	}()
 
@@ -493,8 +541,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
-			fmt.Println("Failed to initialize GitOps. Cleaning up...")
-			cleanup(gitopsConfig)
+			fmt.Println("Failed to initialize GitOps.")
 		}
 	}()
 
@@ -667,8 +714,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	projectName := gitopsName + "-site"
 	dockerComposeCom := exec.Command("docker", "compose", "-p", projectName, "up", "-d")
 
-	fmt.Println("Starting BitSwan GitOps...")
-	if err := runCommandVerbose(dockerComposeCom, o.verbose); err != nil {
+	fmt.Println("Launching BitSwan Workspace services...")
+	if err := runCommandVerbose(dockerComposeCom, true); err != nil {
 		panic(fmt.Errorf("failed to start docker-compose: %w", err))
 	}
 

@@ -1,3 +1,6 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
 env:
   - GO111MODULE=on
   - CGO_ENABLED=0
@@ -8,9 +11,11 @@ before:
     - ./scripts/completions.sh
 
 builds:
-  -
+  - id: bitswan-gitops-cli
     binary: bitswan-gitops-cli
-    ldflags: -s -w -X main.version={{ .Version }}
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
     goos:
       - linux
       - darwin
@@ -22,16 +27,10 @@ builds:
     mod_timestamp: '{{ .CommitTimestamp }}'
 
 archives:
-  -
-    id: bitswan-gitops-cli
+  - id: bitswan-gitops-cli
     builds:
       - bitswan-gitops-cli
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
+    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
@@ -42,19 +41,12 @@ archives:
       - manpages/*
 
 nfpms:
-  -
-    id: bitswan-gitops-cli
+  - id: bitswan-gitops-cli
     package_name: bitswan-gitops-cli
-    file_name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
     builds:
       - bitswan-gitops-cli
     vendor: bitswan-space
-    homepage: https://github.com/bitswan-space/bitswan-gitops-cli
+    homepage: https://github.com/bitswan-space/bitswan-workspaces
     maintainer: "LibertyAces Ltd. <support@libertyaces.com>"
     description: "A general purpose golang CLI template for Github and Gitlab"
     license: BSD
@@ -79,6 +71,7 @@ nfpms:
 
 checksum:
   name_template: "checksums.txt"
+  algorithm: sha256
 
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
@@ -114,13 +107,11 @@ changelog:
 release:
   github:
     owner: bitswan-space
-    name: bitswan-gitops-cli
+    name: bitswan-workspaces
   draft: false
   prerelease: auto
   mode: replace
   header: |
     ## BitSwan GitOps CLI ({{ .Version }})
 
-    For more information, please see the [documentation](https://github.com/bitswan-space/bitswan-gitops-cli/blob/main/README.md).
-  footer: |
-    **Full Changelog**: https://github.com/bitswan-space/bitswan-gitops-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
+    For more information, please see the [documentation](https://github.com/bitswan-space/bitswan-workspaces/blob/main/README.md).
