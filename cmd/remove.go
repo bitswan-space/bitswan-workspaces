@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
 	"github.com/spf13/cobra"
 )
 
@@ -114,7 +115,7 @@ func deleteHostsEntry(gitopsName string) {
 	hostsFilePath := "/etc/hosts"
 	input, err := os.ReadFile(hostsFilePath)
 	if err != nil {
-		fmt.Printf("failed to read /etc/hosts: %v\n", err)
+		fmt.Printf(yellow+"failed to read /etc/hosts: %v\n"+reset, err)
 		return
 	}
 
@@ -137,7 +138,7 @@ func deleteHostsEntry(gitopsName string) {
 
 	// No entries found to remove
 	if !found {
-		fmt.Println("No entries found in /etc/hosts to remove.")
+		fmt.Println(yellow + "No entries found in /etc/hosts to remove." + reset)
 		return
 	}
 
@@ -162,11 +163,9 @@ func deleteHostsEntry(gitopsName string) {
 	cmd.Stdout = nil
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("failed to write to /etc/hosts with sudo: %v\n", err)
+		fmt.Printf(yellow+"failed to write to /etc/hosts with sudo: %v\n"+reset, err)
 		return
 	}
-
-	fmt.Println("Entries successfully removed from /etc/hosts.")
 }
 
 // Remove automations
@@ -333,10 +332,18 @@ func removeGitops(gitopsName string) error {
 	}
 	fmt.Println("GitOps folder removed successfully.")
 
-	// 5. Remove entries from /etc/hosts
+	// 5. Remove caddy files
+	fmt.Println("Removing caddy files...")
+	err = caddyapi.DeleteCaddyRecords(gitopsName)
+	if err != nil {
+		return fmt.Errorf("Error removing caddy files: %w", err)
+	}
+	fmt.Println("Caddy files removed successfully.")
+
+	// 6. Remove entries from /etc/hosts
 	fmt.Println("Removing entries from /etc/hosts...")
 	deleteHostsEntry(gitopsName)
-	fmt.Println("Entries removed successfully.")
+	fmt.Println("Entries removed from /etc/hosts successfully.")
 
 	return nil
 
