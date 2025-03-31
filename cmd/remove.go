@@ -213,7 +213,7 @@ func removeGitops(gitopsName string) error {
 	}
 
 	// Create a new GET request
-	req, err := http.NewRequest("GET", metadata.GitOpsURL, nil)
+	req, err := http.NewRequest("GET", metadata.GitOpsURL+"/automations/", nil)
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 	}
