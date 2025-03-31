@@ -324,8 +324,8 @@ func removeGitops(gitopsName string) error {
 
 	// 4. Remove the gitops folder
 	fmt.Println("Removing gitops folder...")
-	cmd = exec.Command("rm", "-r", filepath.Join(workspacesFolder, gitopsName))
-	cmd.Dir = dockerComposePath
+	cmd = exec.Command("rm", "-r", gitopsName)
+	cmd.Dir = workspacesFolder
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
