@@ -113,9 +113,10 @@ func updateGitops(gitopsName string, o *updateOptions) error {
 	fmt.Println("Restarting services...")
 	dockerComposePath := filepath.Join(gitopsConfig, "deployment")
 
+	projectName := gitopsName + "-site"
 	commands := [][]string{
 		{"docker-compose", "down"},
-		{"docker-compose", "up", "-d", "--remove-orphans"},
+		{"docker", "compose", "-p", projectName, "up", "-d", "--remove-orphans"},
 	}
 
 	for _, args := range commands {
