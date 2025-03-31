@@ -199,15 +199,11 @@ func DeleteCaddyRecords(gitopsName string) error {
 		fmt.Sprintf("http://localhost:2019/id/%s_tlscerts", gitopsName),
 	}
 
-	fmt.Println(urls)
-
 	for _, url := range urls {
 		if _, err := sendRequest("DELETE", url, nil); err != nil {
 			return fmt.Errorf("failed to delete Caddy records: %w", err)
 		}
 	}
-
-	fmt.Println("HELLO!")
 	return nil
 }
 
