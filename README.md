@@ -29,18 +29,18 @@ CLI app for managing bitswan-gitops deployments
 # Installation
 ## Linux / WSL
 ```
-# Download and extract the binary in one command
-curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/latest/download/bitswan-gitops-cli_Linux_x86_64.tar.gz | tar -xz
+LATEST_VERSION=$(curl -s https://api.github.com/repos/bitswan-space/bitswan-workspaces/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+curl -L "https://github.com/bitswan-space/bitswan-workspaces/releases/download/${LATEST_VERSION}/bitswan-workspaces_${LATEST_VERSION}_linux_amd64.tar.gz" | tar -xz
 ```
 ## MacOS (Apple Sillicon M1+)
 ```
-# Download and extract the binary in one command
-curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/latest/download/bitswan-gitops-cli_Darwin_arm64.tar.gz | tar -xz
+LATEST_VERSION=$(curl -s https://api.github.com/repos/bitswan-space/bitswan-workspaces/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+curl -L "https://github.com/bitswan-space/bitswan-workspaces/releases/download/${LATEST_VERSION}/bitswan-workspaces_${LATEST_VERSION}_darwin_arm64.tar.gz" | tar -xz
 ```
 ## MacOS (Intel-based)
 ```
-# Download and extract the binary in one command
-curl -L https://github.com/bitswan-space/bitswan-gitops-cli/releases/latest/download/bitswan-gitops-cli_Darwin_x86_x64.tar.gz | tar -xz
+LATEST_VERSION=$(curl -s https://api.github.com/repos/bitswan-space/bitswan-workspaces/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+curl -L "https://github.com/bitswan-space/bitswan-workspaces/releases/download/${LATEST_VERSION}/bitswan-workspaces_${LATEST_VERSION}_darwin_amd64.tar.gz" | tar -xz
 ```
 
 Move the binary to a directory in your PATH
