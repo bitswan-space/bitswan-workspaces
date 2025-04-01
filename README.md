@@ -106,20 +106,12 @@ And finally setup the gitops.
 bitswan-gitops-cli init --domain=bitswan.localhost --mkcerts dev-gitops
 ```
 
-Add records to /etc/hosts:
-
-```sh
-      127.0.0.1 dev-gitops-editor.bitswan.localhost
-      127.0.0.1 dev-gitops-gitops.bitswan.localhost
-      127.0.0.1 testpipeline.bitswan.localhost
-```
-
 You should be able to access the editor in chrome via [https://dev-gitops-editor.bitswan.localhost](https://dev-gitops-editor.bitswan.localhost).
 
 You can get the password to the editor using the command:
 
 ```sh
-docker exec -it dev-gitops-site-bitswan-editor-dev-gitops-1 cat /home/coder/.config/code-server/config.yaml
+bitswan-gitops-cli list --long --passwords
 ```
 
 
