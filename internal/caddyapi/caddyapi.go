@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 )
 
 type Route struct {
+	ID       string   `json:"@id,omitempty"`
 	Match    []Match  `json:"match"`
 	Handle   []Handle `json:"handle"`
 	Terminal bool     `json:"terminal"`
@@ -28,6 +30,7 @@ type Upstream struct {
 }
 
 type TLSPolicy struct {
+	ID                   string                  `json:"@id,omitempty"`
 	Match                TLSMatch                `json:"match"`
 	CertificateSelection TLSCertificateSelection `json:"certificate_selection"`
 }
@@ -41,6 +44,7 @@ type TLSCertificateSelection struct {
 }
 
 type TLSFileLoad struct {
+	ID          string   `json:"@id,omitempty"`
 	Certificate string   `json:"certificate"`
 	Key         string   `json:"key"`
 	Tags        []string `json:"tags"`
@@ -56,6 +60,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 
 	// GitOps route
 	routes = append(routes, Route{
+		ID:    fmt.Sprintf("%s_gitops", gitopsName),
 		Match: []Match{{Host: []string{fmt.Sprintf("%s-gitops.%s", gitopsName, domain)}}},
 		Handle: []Handle{{Handler: "subroute", Routes: []Route{
 			{
@@ -68,8 +73,9 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 	})
 
 	// Bitswan editor route
-	if !noIde{
+	if !noIde {
 		routes = append(routes, Route{
+			ID: fmt.Sprintf("%s_editor", gitopsName),
 			Match: []Match{
 				{
 					Host: []string{fmt.Sprintf("%s-editor.%s", gitopsName, domain)},
@@ -101,6 +107,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 	if certs {
 		tlsPolicy := []TLSPolicy{
 			{
+				ID: fmt.Sprintf("%s_tlspolicy", gitopsName),
 				Match: TLSMatch{
 					SNI: []string{
 						fmt.Sprintf("*.%s", domain),
@@ -114,6 +121,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 
 		tlsLoad := []TLSFileLoad{
 			{
+				ID:          fmt.Sprintf("%s_tlscerts", gitopsName),
 				Certificate: fmt.Sprintf("/tls/%s/full-chain.pem", domain),
 				Key:         fmt.Sprintf("/tls/%s/private-key.pem", domain),
 				Tags:        []string{gitopsName},
@@ -127,7 +135,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 		}
 
 		// Send the payload to the Caddy API
-		err = sendRequest("POST", caddyAPITLSBaseUrl, jsonPayload)
+		_, err = sendRequest("POST", caddyAPITLSBaseUrl, jsonPayload)
 		if err != nil {
 			return fmt.Errorf("Failed to add TLS to Caddy: %w", err)
 		}
@@ -138,7 +146,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 		}
 
 		// Send the payload to the Caddy API
-		err = sendRequest("POST", caddyAPITLSPoliciesBaseUrl, jsonPayload)
+		_, err = sendRequest("POST", caddyAPITLSPoliciesBaseUrl, jsonPayload)
 		if err != nil {
 			return fmt.Errorf("Failed to add TLS policies to Caddy: %w", err)
 		}
@@ -150,7 +158,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 	}
 
 	// Send the payload to the Caddy API
-	err = sendRequest("POST", caddyAPIRoutesBaseUrl, jsonPayload)
+	_, err = sendRequest("POST", caddyAPIRoutesBaseUrl, jsonPayload)
 	if err != nil {
 		return fmt.Errorf("Failed to add routes to Caddy: %w", err)
 	}
@@ -174,7 +182,7 @@ func InitCaddy() error {
 			payload = []byte(`[]`)
 		}
 
-		if err := sendRequest("PUT", url, payload); err != nil {
+		if _, err := sendRequest("PUT", url, payload); err != nil {
 			return fmt.Errorf("failed to initialize Caddy: %w", err)
 		}
 	}
@@ -183,25 +191,30 @@ func InitCaddy() error {
 	return nil
 }
 
-func sendRequest(method, url string, payload []byte) error {
+func sendRequest(method, url string, payload []byte) ([]byte, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 	if err != nil {
-		return fmt.Errorf("failed to create HTTP request: %w", err)
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to call Caddy API: %w", err)
+		return nil, fmt.Errorf("Failed to call Caddy API: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Caddy API returned status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("Caddy API returned status code %d", resp.StatusCode)
 	}
 
-	return nil
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return body, nil
 }
