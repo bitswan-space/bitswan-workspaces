@@ -11,8 +11,8 @@ before:
     - ./scripts/completions.sh
 
 builds:
-  - id: bitswan-gitops-cli
-    binary: bitswan-gitops-cli
+  - id: bitswan
+    binary: bitswan
     ldflags:
       - -s -w
       - -X main.version={{ .Version }}
@@ -27,9 +27,9 @@ builds:
     mod_timestamp: '{{ .CommitTimestamp }}'
 
 archives:
-  - id: bitswan-gitops-cli
+  - id: bitswan
     builds:
-      - bitswan-gitops-cli
+      - bitswan
     format: tar.gz
     format_overrides:
       - goos: windows
@@ -41,10 +41,10 @@ archives:
       - manpages/*
 
 nfpms:
-  - id: bitswan-gitops-cli
-    package_name: bitswan-gitops-cli
+  - id: bitswan
+    package_name: bitswan
     builds:
-      - bitswan-gitops-cli
+      - bitswan
     vendor: bitswan-space
     homepage: https://github.com/bitswan-space/bitswan-workspaces
     maintainer: "LibertyAces Ltd. <support@libertyaces.com>"
@@ -52,20 +52,20 @@ nfpms:
     license: BSD
     bindir: /usr/bin
     contents:
-      - src: ./manpages/bitswan-gitops-cli.1.gz
-        dst: /usr/share/man/man1/bitswan-gitops-cli.1.gz
+      - src: ./manpages/bitswan.1.gz
+        dst: /usr/share/man/man1/bitswan.1.gz
         file_info:
           mode: 0644
-      - src: ./completions/bitswan-gitops-cli.bash
-        dst: /usr/share/bash-completion/completions/bitswan-gitops-cli
+      - src: ./completions/bitswan.bash
+        dst: /usr/share/bash-completion/completions/bitswan
         file_info:
           mode: 0644
-      - src: ./completions/bitswan-gitops-cli.fish
-        dst: /usr/share/fish/vendor_completions.d/bitswan-gitops-cli.fish
+      - src: ./completions/bitswan.fish
+        dst: /usr/share/fish/vendor_completions.d/bitswan.fish
         file_info:
           mode: 0644
-      - src: ./completions/bitswan-gitops-cli.zsh
-        dst: /usr/share/zsh/vendor-completions/_bitswan-gitops-cli
+      - src: ./completions/bitswan.zsh
+        dst: /usr/share/zsh/vendor-completions/_bitswan
         file_info:
           mode: 0644
 

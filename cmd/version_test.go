@@ -22,5 +22,5 @@ func TestVersionCommand(t *testing.T) {
 	out, err := io.ReadAll(b)
 	require.NoError(t, err)
 
-	assert.Equal(t, fmt.Sprintf("bitswan-gitops: %s\n", version), string(out))
+	assert.Equal(t, fmt.Sprintf("bitswan workspaces: %s\n", version), string(out))
 }

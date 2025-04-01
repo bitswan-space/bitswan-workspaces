@@ -8,8 +8,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
-	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockerhub"
+	"github.com/bitswan-space/bitswan-workspaces/internal/dockercompose"
+	"github.com/bitswan-space/bitswan-workspaces/internal/dockerhub"
 	"github.com/spf13/cobra"
 )
 
@@ -21,19 +21,19 @@ type updateOptions struct {
 func newUpdateCmd() *cobra.Command {
 	o := &updateOptions{}
 	cmd := &cobra.Command{
-		Use:          "update <gitops-name>",
-		Short:        "bitswan-gitops update",
+		Use:          "update <workspace-name>",
+		Short:        "bitswan workspace update",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			gitopsName := args[0]
-			fmt.Printf("Updating Gitops: %s...\n", gitopsName)
-			err := updateGitops(gitopsName, o)
+			workspaceName := args[0]
+			fmt.Printf("Updating Gitops: %s...\n", workspaceName)
+			err := updateGitops(workspaceName, o)
 			if err != nil {
-				fmt.Errorf("Error updating gitops: %w", err)
+				fmt.Errorf("Error updating workspace: %w", err)
 				return
 			}
-			fmt.Printf("Gitops %s updated successfully!\n", gitopsName)
+			fmt.Printf("Gitops %s updated successfully!\n", workspaceName)
 		},
 	}
 
@@ -43,7 +43,7 @@ func newUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-func updateGitops(gitopsName string, o *updateOptions) error {
+func updateGitops(workspaceName string, o *updateOptions) error {
 	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
 
 	repoPath := filepath.Join(bitswanPath, "bitswan-src")
@@ -75,10 +75,10 @@ func updateGitops(gitopsName string, o *updateOptions) error {
 		bitswanEditorImage = "bitswan/bitswan-editor:" + bitswanEditorLatestVersion
 	}
 
-	gitopsConfig := filepath.Join(bitswanPath, "workspaces/", gitopsName)
+	gitopsConfig := filepath.Join(bitswanPath, "workspaces/", workspaceName)
 
-	// Get the domain from the file `~/.config/bitswan/<gitops-name>/deployment/domain`
-	dataPath := filepath.Join(os.Getenv("HOME"), ".config", "bitswan", "workspaces", gitopsName, "metadata.yaml")
+	// Get the domain from the file `~/.config/bitswan/<workspace-name>/deployment/domain`
+	dataPath := filepath.Join(os.Getenv("HOME"), ".config", "bitswan", "workspaces", workspaceName, "metadata.yaml")
 
 	data, err := os.ReadFile(dataPath)
 	if err != nil {
@@ -99,7 +99,7 @@ func updateGitops(gitopsName string, o *updateOptions) error {
 
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == ""
-	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, gitopsName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
+	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, workspaceName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
 	if err != nil {
 		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
 	}
@@ -113,7 +113,7 @@ func updateGitops(gitopsName string, o *updateOptions) error {
 	fmt.Println("Restarting services...")
 	dockerComposePath := filepath.Join(gitopsConfig, "deployment")
 
-	projectName := gitopsName + "-site"
+	projectName := workspaceName + "-site"
 	commands := [][]string{
 		{"docker-compose", "down"},
 		{"docker", "compose", "-p", projectName, "up", "-d", "--remove-orphans"},
