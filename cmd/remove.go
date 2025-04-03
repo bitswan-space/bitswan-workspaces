@@ -172,7 +172,8 @@ func deleteHostsEntry(gitopsName string) {
 func removeAutomations(automations []Automation, token, url string) {
 	client := &http.Client{}
 	for _, a := range automations {
-		req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", url, a.DeploymentID), nil)
+		fmt.Printf("Removing automation %s...\n", a.Name)
+		req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/automations/%s", url, a.DeploymentID), nil)
 		if err != nil {
 			fmt.Printf("Error creating request for automation %s: %v\n", a.Name, err)
 			continue
@@ -186,6 +187,12 @@ func removeAutomations(automations []Automation, token, url string) {
 			fmt.Printf("Error sending request for automation %s: %v\n", a.Name, err)
 			continue
 		}
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Error removing automation %s: %s\n", a.Name, resp.Status)
+		} else {
+			fmt.Printf("Automation %s removed successfully.\n", a.Name)
+		}
+
 		resp.Body.Close()
 	}
 }
