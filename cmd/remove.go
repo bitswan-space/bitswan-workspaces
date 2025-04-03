@@ -14,7 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
+	"github.com/bitswan-space/bitswan-workspaces/internal/caddyapi"
 	"github.com/spf13/cobra"
 )
 
