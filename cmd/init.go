@@ -16,9 +16,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/bitswan-space/bitswan-gitops-cli/internal/caddyapi"
-	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
-	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockerhub"
+	"github.com/bitswan-space/bitswan-workspaces/internal/caddyapi"
+	"github.com/bitswan-space/bitswan-workspaces/internal/dockercompose"
+	"github.com/bitswan-space/bitswan-workspaces/internal/dockerhub"
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +54,7 @@ func newInitCmd() *cobra.Command {
 	o := defaultInitOptions()
 
 	cmd := &cobra.Command{
-		Use:   "init [flags] <gitops-name>",
+		Use:   "init [flags] <workspace-name>",
 		Short: "Initializes a new GitOps, Caddy and Bitswan editor",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE:  o.run,
@@ -270,7 +270,7 @@ func generateWildcardCerts(domain string) (string, error) {
 	return tempDir, nil
 }
 
-func setHosts(gitopsName string, o *initOptions) error {
+func setHosts(workspaceName string, o *initOptions) error {
 	fmt.Println("Checking if the user has permission to write to /etc/hosts...")
 	fileInfo, err := os.Stat("/etc/hosts")
 	if err != nil {
@@ -284,11 +284,11 @@ func setHosts(gitopsName string, o *initOptions) error {
 	fmt.Println("File /etc/hosts is writable")
 
 	hostsEntries := []string{
-		"127.0.0.1 " + gitopsName + "-gitops.bitswan.local",
+		"127.0.0.1 " + workspaceName + "-gitops.bitswan.local",
 	}
 
 	if !o.noIde {
-		hostsEntries = append(hostsEntries, "127.0.0.1 "+gitopsName+"-editor.bitswan.local")
+		hostsEntries = append(hostsEntries, "127.0.0.1 "+workspaceName+"-editor.bitswan.local")
 	}
 
 	// Check if the entries already exist in /etc/hosts
@@ -312,7 +312,7 @@ func setHosts(gitopsName string, o *initOptions) error {
 }
 
 // After displaying the information, save it to metadata.yaml
-func saveMetadata(gitopsConfig, gitopsName, token, domain string, noIde bool) error {
+func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool) error {
 	// Create metadata structure
 	type Metadata struct {
 		Domain       string `yaml:"domain"`
@@ -323,13 +323,13 @@ func saveMetadata(gitopsConfig, gitopsName, token, domain string, noIde bool) er
 
 	metadata := Metadata{
 		Domain:       domain,
-		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", gitopsName, domain),
+		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
 		GitopsSecret: token,
 	}
 
 	// Add editor URL if IDE is enabled
 	if !noIde {
-		metadata.EditorURL = fmt.Sprintf("https://%s-editor.%s", gitopsName, domain)
+		metadata.EditorURL = fmt.Sprintf("https://%s-editor.%s", workspaceName, domain)
 	}
 
 	// Marshal to YAML
@@ -348,6 +348,8 @@ func saveMetadata(gitopsConfig, gitopsName, token, domain string, noIde bool) er
 }
 
 func (o *initOptions) run(cmd *cobra.Command, args []string) error {
+	// The first argument is the workspace name
+	workspaceName := args[0]
 	bitswanConfig := os.Getenv("HOME") + "/.config/bitswan/"
 
 	if _, err := os.Stat(bitswanConfig); os.IsNotExist(err) {
@@ -530,13 +532,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Println("Certs copied successfully!")
 	}
 
-	// GitOps name
-	gitopsName := "gitops"
-	if len(args) == 1 {
-		gitopsName = args[0]
-	}
-
-	gitopsConfig := bitswanConfig + "workspaces/" + gitopsName
+	gitopsConfig := bitswanConfig + "workspaces/" + workspaceName
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -546,7 +542,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}()
 
 	if _, err := os.Stat(gitopsConfig); !os.IsNotExist(err) {
-		return fmt.Errorf("GitOps with this name was already initialized: %s", gitopsName)
+		return fmt.Errorf("GitOps with this name was already initialized: %s", workspaceName)
 	}
 
 	if err := os.MkdirAll(gitopsConfig, 0755); err != nil {
@@ -581,7 +577,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Add GitOps worktree
 	gitopsWorktree := gitopsConfig + "/gitops"
-	worktreeAddCom := exec.Command("git", "worktree", "add", "--orphan", "-b", gitopsName, gitopsWorktree)
+	worktreeAddCom := exec.Command("git", "worktree", "add", "--orphan", "-b", workspaceName, gitopsWorktree)
 	worktreeAddCom.Dir = gitopsWorkspace
 
 	fmt.Println("Setting up GitOps worktree...")
@@ -604,7 +600,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Push to remote
-		setUpstreamCom := exec.Command("git", "push", "-u", "origin", gitopsName)
+		setUpstreamCom := exec.Command("git", "push", "-u", "origin", workspaceName)
 		setUpstreamCom.Dir = gitopsWorktree
 		if err := runCommandVerbose(setUpstreamCom, o.verbose); err != nil {
 			panic(fmt.Errorf("Failed to set upstream: %w", err))
@@ -646,7 +642,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Set hosts to /etc/hosts file
 	if o.setHosts {
-		err := setHosts(gitopsName, o)
+		err := setHosts(workspaceName, o)
 		if err != nil {
 			fmt.Printf("\033[33m%s\033[0m\n", err)
 		}
@@ -676,7 +672,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to create deployment directory: %w", err)
 	}
 
-	err = caddyapi.AddCaddyRecords(gitopsName, o.domain, inputCertsDir != "", o.noIde)
+	err = caddyapi.AddCaddyRecords(workspaceName, o.domain, inputCertsDir != "", o.noIde)
 	if err != nil {
 		panic(fmt.Errorf("Failed to add Caddy records: %w", err))
 	}
@@ -689,7 +685,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	compose, token, err := dockercompose.CreateDockerComposeFile(
 
 		gitopsConfig,
-		gitopsName,
+		workspaceName,
 		gitopsImage,
 		bitswanEditorImage,
 		o.domain,
@@ -711,7 +707,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("GitOps deployment set up successfully!")
 
-	projectName := gitopsName + "-site"
+	projectName := workspaceName + "-site"
 	dockerComposeCom := exec.Command("docker", "compose", "-p", projectName, "up", "-d")
 
 	fmt.Println("Launching BitSwan Workspace services...")
@@ -722,28 +718,28 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Println("BitSwan GitOps initialized successfully!")
 
 	// Save metadata to file
-	if err := saveMetadata(gitopsConfig, gitopsName, token, o.domain, o.noIde); err != nil {
+	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde); err != nil {
 		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
 	}
 
 	// Get Bitswan Editor password from container
 	if !o.noIde {
 		// First, wait for the editor service to be ready by streaming logs
-		if err := dockercompose.WaitForEditorReady(gitopsName); err != nil {
+		if err := dockercompose.WaitForEditorReady(workspaceName); err != nil {
 			panic(fmt.Errorf("failed to wait for editor to be ready: %w", err))
 		}
-		editorPassword, err := dockercompose.GetEditorPassword(gitopsName)
+		editorPassword, err := dockercompose.GetEditorPassword(workspaceName)
 		if err != nil {
 			panic(fmt.Errorf("Failed to get Bitswan Editor password: %w", err))
 		}
 		fmt.Println("------------BITSWAN EDITOR INFO------------")
-		fmt.Printf("Bitswan Editor URL: https://%s-editor.%s\n", gitopsName, o.domain)
+		fmt.Printf("Bitswan Editor URL: https://%s-editor.%s\n", workspaceName, o.domain)
 		fmt.Printf("Bitswan Editor Password: %s\n", editorPassword)
 	}
 
 	fmt.Println("------------GITOPS INFO------------")
-	fmt.Printf("GitOps ID: %s\n", gitopsName)
-	fmt.Printf("GitOps URL: https://%s-gitops.%s\n", gitopsName, o.domain)
+	fmt.Printf("GitOps ID: %s\n", workspaceName)
+	fmt.Printf("GitOps URL: https://%s-gitops.%s\n", workspaceName, o.domain)
 	fmt.Printf("GitOps Secret: %s\n", token)
 
 	return nil

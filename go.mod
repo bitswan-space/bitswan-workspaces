@@ -1,4 +1,4 @@
-module github.com/bitswan-space/bitswan-gitops-cli
+module github.com/bitswan-space/bitswan-workspaces
 
 go 1.21
 

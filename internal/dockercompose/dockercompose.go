@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +23,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorImage, domain string, noIde bool) (string, string, error) {
+func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEditorImage, domain string, noIde bool) (string, string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -46,6 +45,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorI
 	gitopsService := map[string]interface{}{
 		"image":    gitopsImage,
 		"restart":  "always",
+		"hostname": workspaceName + "-gitops",
 		"networks": []string{"bitswan_network"},
 		"volumes": []string{
 			gitopsPath + "/gitops:/gitops/gitops",
@@ -56,7 +56,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorI
 		"environment": []string{
 			"BITSWAN_GITOPS_DIR=/gitops",
 			"BITSWAN_GITOPS_DIR_HOST=" + gitopsPath,
-			"BITSWAN_GITOPS_ID=" + gitopsName,
+			"BITSWAN_GITOPS_ID=" + workspaceName,
 			"BITSWAN_GITOPS_SECRET=" + gitopsSecretToken,
 			"BITSWAN_GITOPS_DOMAIN=" + domain,
 		},
@@ -91,7 +91,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorI
 	dockerCompose := map[string]interface{}{
 		"version": "3.8",
 		"services": map[string]interface{}{
-			gitopsName: gitopsService,
+			"bitswan-gitops": gitopsService,
 		},
 		"networks": map[string]interface{}{
 			"bitswan_network": map[string]interface{}{
@@ -104,9 +104,10 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorI
 		bitswanEditor := map[string]interface{}{
 			"image":    bitswanEditorImage,
 			"restart":  "always",
+			"hostname": workspaceName + "-editor",
 			"networks": []string{"bitswan_network"},
 			"environment": []string{
-				"BITSWAN_DEPLOY_URL=" + fmt.Sprintf("http://%s", net.JoinHostPort(gitopsName, "8079")),
+				"BITSWAN_DEPLOY_URL=" + fmt.Sprintf("http://%s-gitops:8079", workspaceName),
 				"BITSWAN_DEPLOY_SECRET=" + gitopsSecretToken,
 				"BITSWAN_GITOPS_DIR=/home/coder/workspace",
 			},
@@ -119,7 +120,7 @@ func CreateDockerComposeFile(gitopsPath, gitopsName, gitopsImage, bitswanEditorI
 			},
 		}
 
-		dockerCompose["services"].(map[string]interface{})[fmt.Sprintf("bitswan-editor-%s", gitopsName)] = bitswanEditor
+		dockerCompose["services"].(map[string]interface{})["bitswan-editor"] = bitswanEditor
 		dockerCompose["volumes"] = map[string]interface{}{
 			"bitswan-editor-data": nil,
 		}
@@ -187,7 +188,7 @@ type EditorConfig struct {
 
 func GetEditorPassword(workspaceName string) (string, error) {
 	// Once the editor is ready, get the password
-	getBitswanEditorPasswordCom := exec.Command("docker", "exec", workspaceName+"-site-bitswan-editor-"+workspaceName+"-1", "cat", "/home/coder/.config/code-server/config.yaml")
+	getBitswanEditorPasswordCom := exec.Command("docker", "exec", workspaceName+"-site-bitswan-editor-1", "cat", "/home/coder/.config/code-server/config.yaml")
 	out, err := getBitswanEditorPasswordCom.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get Bitswan Editor password: %w", err)
@@ -205,7 +206,7 @@ func WaitForEditorReady(workspaceName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", workspaceName+"-site", "logs", "-f", "bitswan-editor-"+workspaceName)
+	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", workspaceName+"-site", "logs", "-f", "bitswan-editor")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

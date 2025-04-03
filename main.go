@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bitswan-space/bitswan-gitops-cli/cmd"
+	"github.com/bitswan-space/bitswan-workspaces/cmd"
 )
 
 var version = ""

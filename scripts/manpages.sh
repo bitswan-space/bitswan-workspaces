@@ -2,4 +2,4 @@
 set -e
 rm -rf manpages
 mkdir manpages
-go run . man | gzip -c -9 >manpages/bitswan-gitops.1.gz
+go run . man | gzip -c -9 >manpages/bitswan.1.gz
