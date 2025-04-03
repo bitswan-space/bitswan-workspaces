@@ -246,7 +246,7 @@ func removeGitops(gitopsName string) error {
 	}
 
 	fmt.Println("Automations fetched successfully.")
-	fmt.Println("The following automations are running in this gitops:\n")
+	fmt.Print("The following automations are running in this gitops:\n\n")
 	// Print table header
 	fmt.Printf("%s%-8s %-20s %-12s %-10s %-20s %-20s%s\n", bold, "ACTIVE", "NAME", "STATE", "STATUS", "DEPLOYMENT ID", "CREATED AT", reset)
 	fmt.Println(gray + "-----------------------------------------------------------------------------------------" + reset)
