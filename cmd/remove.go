@@ -286,7 +286,8 @@ func removeGitops(gitopsName string) error {
 	fmt.Println("Removing docker containers and volumes...")
 	workspacesFolder := filepath.Join(bitswanPath, "workspaces")
 	dockerComposePath := filepath.Join(workspacesFolder, gitopsName, "deployment")
-	cmd := exec.Command("docker-compose", "down", "--volumes")
+	projectName := gitopsName + "-site"
+	cmd := exec.Command("docker", "compose", "-p", projectName, "down", "--volumes")
 	cmd.Dir = dockerComposePath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
