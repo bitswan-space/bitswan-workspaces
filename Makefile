@@ -1,4 +1,4 @@
-projectname?=bitswan-gitops
+projectname?=bitswan
 
 default: help
 

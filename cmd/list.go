@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bitswan-space/bitswan-gitops-cli/internal/dockercompose"
+	"github.com/bitswan-space/bitswan-workspaces/internal/dockercompose"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"

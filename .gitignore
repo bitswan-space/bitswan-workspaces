@@ -1,4 +1,5 @@
 bitswan-gitops
+bitswan
 vendor/
 coverage.out
 /dist

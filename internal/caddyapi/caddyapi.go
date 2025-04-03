@@ -51,7 +51,7 @@ type TLSFileLoad struct {
 }
 
 // TODO: we should think about how to handle the case when use would like to deploy GitOps on server where Caddy is already running
-func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
+func AddCaddyRecords(workspaceName, domain string, certs, noIde bool) error {
 	caddyAPIRoutesBaseUrl := "http://localhost:2019/config/apps/http/servers/srv0/routes/..."
 	caddyAPITLSBaseUrl := "http://localhost:2019/config/apps/tls/certificates/load_files/..."
 	caddyAPITLSPoliciesBaseUrl := "http://localhost:2019/config/apps/http/servers/srv0/tls_connection_policies/..."
@@ -60,12 +60,12 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 
 	// GitOps route
 	routes = append(routes, Route{
-		ID:    fmt.Sprintf("%s_gitops", gitopsName),
-		Match: []Match{{Host: []string{fmt.Sprintf("%s-gitops.%s", gitopsName, domain)}}},
+		ID:    fmt.Sprintf("%s_gitops", workspaceName),
+		Match: []Match{{Host: []string{fmt.Sprintf("%s-gitops.%s", workspaceName, domain)}}},
 		Handle: []Handle{{Handler: "subroute", Routes: []Route{
 			{
 				Handle: []Handle{{Handler: "reverse_proxy", Upstreams: []Upstream{
-					{Dial: fmt.Sprintf("%s:8079", gitopsName)},
+					{Dial: fmt.Sprintf("%s-gitops:8079", workspaceName)},
 				}}},
 			},
 		}}},
@@ -75,10 +75,10 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 	// Bitswan editor route
 	if !noIde {
 		routes = append(routes, Route{
-			ID: fmt.Sprintf("%s_editor", gitopsName),
+			ID: fmt.Sprintf("%s_editor", workspaceName),
 			Match: []Match{
 				{
-					Host: []string{fmt.Sprintf("%s-editor.%s", gitopsName, domain)},
+					Host: []string{fmt.Sprintf("%s-editor.%s", workspaceName, domain)},
 				},
 			},
 			Handle: []Handle{
@@ -91,7 +91,7 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 									Handler: "reverse_proxy",
 									Upstreams: []Upstream{
 										{
-											Dial: fmt.Sprintf("bitswan-editor-%s:9999", gitopsName),
+											Dial: fmt.Sprintf("%s-editor:9999", workspaceName),
 										},
 									},
 								},
@@ -107,24 +107,24 @@ func AddCaddyRecords(gitopsName, domain string, certs, noIde bool) error {
 	if certs {
 		tlsPolicy := []TLSPolicy{
 			{
-				ID: fmt.Sprintf("%s_tlspolicy", gitopsName),
+				ID: fmt.Sprintf("%s_tlspolicy", workspaceName),
 				Match: TLSMatch{
 					SNI: []string{
 						fmt.Sprintf("*.%s", domain),
 					},
 				},
 				CertificateSelection: TLSCertificateSelection{
-					AnyTag: []string{gitopsName},
+					AnyTag: []string{workspaceName},
 				},
 			},
 		}
 
 		tlsLoad := []TLSFileLoad{
 			{
-				ID:          fmt.Sprintf("%s_tlscerts", gitopsName),
+				ID:          fmt.Sprintf("%s_tlscerts", workspaceName),
 				Certificate: fmt.Sprintf("/tls/%s/full-chain.pem", domain),
 				Key:         fmt.Sprintf("/tls/%s/private-key.pem", domain),
-				Tags:        []string{gitopsName},
+				Tags:        []string{workspaceName},
 			},
 		}
 
