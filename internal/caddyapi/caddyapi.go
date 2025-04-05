@@ -191,6 +191,22 @@ func InitCaddy() error {
 	return nil
 }
 
+func DeleteCaddyRecords(gitopsName string) error {
+	urls := []string{
+		fmt.Sprintf("http://localhost:2019/id/%s_gitops", gitopsName),
+		fmt.Sprintf("http://localhost:2019/id/%s_editor", gitopsName),
+		fmt.Sprintf("http://localhost:2019/id/%s_tlspolicy", gitopsName),
+		fmt.Sprintf("http://localhost:2019/id/%s_tlscerts", gitopsName),
+	}
+
+	for _, url := range urls {
+		if _, err := sendRequest("DELETE", url, nil); err != nil {
+			return fmt.Errorf("failed to delete Caddy records: %w", err)
+		}
+	}
+	return nil
+}
+
 func sendRequest(method, url string, payload []byte) ([]byte, error) {
 	client := &http.Client{}
 
@@ -206,6 +222,10 @@ func sendRequest(method, url string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("Failed to call Caddy API: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if method == http.MethodDelete && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
+		return nil, fmt.Errorf("Caddy API returned status code %d for DELETE request", resp.StatusCode)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Caddy API returned status code %d", resp.StatusCode)

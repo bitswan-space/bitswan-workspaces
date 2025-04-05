@@ -1,116 +1,117 @@
 package cmd
 
 import (
-    "fmt"
-    "os"
-    "os/exec"
-    "path/filepath"
-    "strings"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
-    "github.com/spf13/cobra"
+	"github.com/spf13/cobra"
 )
 
 func newRootCmd(version string) *cobra.Command {
-    cmd := &cobra.Command{
-        Use:   "bitswan",
-        Short: "Deploy your Jupyter pipelines with bitswan",
-        RunE: func(cmd *cobra.Command, args []string) error {
-            return cmd.Help()
-        },
-    }
+	cmd := &cobra.Command{
+		Use:   "bitswan",
+		Short: "Deploy your Jupyter pipelines with bitswan",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
 
-    cmd.AddCommand(newVersionCmd(version)) // version subcommand
-    cmd.AddCommand(newWorkspaceCmd())      // workspace subcommand
+	cmd.AddCommand(newVersionCmd(version)) // version subcommand
+	cmd.AddCommand(newWorkspaceCmd())      // workspace subcommand
 
-    // Find and add external commands
-    addExternalCommands(cmd)
+	// Find and add external commands
+	addExternalCommands(cmd)
 
-    return cmd
+	return cmd
 }
 
 // newWorkspaceCmd creates the workspace subcommand
 func newWorkspaceCmd() *cobra.Command {
-    cmd := &cobra.Command{
-        Use:   "workspace",
-        Short: "Manage bitswan workspaces",
-        RunE: func(cmd *cobra.Command, args []string) error {
-            return cmd.Help()
-        },
-    }
+	cmd := &cobra.Command{
+		Use:   "workspace",
+		Short: "Manage bitswan workspaces",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
 
-    // Add subcommands to workspace
-    cmd.AddCommand(newListCmd())
-    cmd.AddCommand(newInitCmd())
-    cmd.AddCommand(newUpdateCmd())
+	// Add subcommands to workspace
+	cmd.AddCommand(newListCmd())
+	cmd.AddCommand(newInitCmd())
+	cmd.AddCommand(newUpdateCmd())
+	cmd.AddCommand(newRemoveCmd())
 
-    return cmd
+	return cmd
 }
 
 // addExternalCommands finds and adds external commands from PATH
 func addExternalCommands(rootCmd *cobra.Command) {
-    // Get PATH environment variable
-    pathEnv := os.Getenv("PATH")
-    if pathEnv == "" {
-        return
-    }
+	// Get PATH environment variable
+	pathEnv := os.Getenv("PATH")
+	if pathEnv == "" {
+		return
+	}
 
-    // Split PATH into directories
-    pathDirs := filepath.SplitList(pathEnv)
+	// Split PATH into directories
+	pathDirs := filepath.SplitList(pathEnv)
 
-    // Track added commands to avoid duplicates
-    addedCommands := make(map[string]bool)
+	// Track added commands to avoid duplicates
+	addedCommands := make(map[string]bool)
 
-    // Check each directory in PATH
-    for _, dir := range pathDirs {
-        files, err := os.ReadDir(dir)
-        if err != nil {
-            continue
-        }
+	// Check each directory in PATH
+	for _, dir := range pathDirs {
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
 
-        // Look for bitswan-* executables
-        for _, file := range files {
-            if strings.HasPrefix(file.Name(), "bitswan-") {
-                subcommandName := strings.TrimPrefix(file.Name(), "bitswan-")
+		// Look for bitswan-* executables
+		for _, file := range files {
+			if strings.HasPrefix(file.Name(), "bitswan-") {
+				subcommandName := strings.TrimPrefix(file.Name(), "bitswan-")
 
-                // Skip if already added or is a workspace command
-                if addedCommands[subcommandName] || 
-                   subcommandName == "workspace" || 
-                   subcommandName == "version" {
-                    continue
-                }
+				// Skip if already added or is a workspace command
+				if addedCommands[subcommandName] ||
+					subcommandName == "workspace" ||
+					subcommandName == "version" {
+					continue
+				}
 
-                // Create a command that executes the external binary
-                externalCmd := &cobra.Command{
-                    Use:   subcommandName,
-                    Short: fmt.Sprintf("External command: %s", subcommandName),
-                    RunE: func(execPath string) func(cmd *cobra.Command, args []string) error {
-                        return func(cmd *cobra.Command, args []string) error {
-                            // Create the external command
-                            execCmd := exec.Command(execPath, args...)
-                            execCmd.Stdin = os.Stdin
-                            execCmd.Stdout = os.Stdout
-                            execCmd.Stderr = os.Stderr
+				// Create a command that executes the external binary
+				externalCmd := &cobra.Command{
+					Use:   subcommandName,
+					Short: fmt.Sprintf("External command: %s", subcommandName),
+					RunE: func(execPath string) func(cmd *cobra.Command, args []string) error {
+						return func(cmd *cobra.Command, args []string) error {
+							// Create the external command
+							execCmd := exec.Command(execPath, args...)
+							execCmd.Stdin = os.Stdin
+							execCmd.Stdout = os.Stdout
+							execCmd.Stderr = os.Stderr
 
-                            // Run the command
-                            return execCmd.Run()
-                        }
-                    }(filepath.Join(dir, file.Name())),
+							// Run the command
+							return execCmd.Run()
+						}
+					}(filepath.Join(dir, file.Name())),
 					DisableFlagParsing: true,
-                }
+				}
 
-                // Add the command to the root command
-                rootCmd.AddCommand(externalCmd)
-                addedCommands[subcommandName] = true
-            }
-        }
-    }
+				// Add the command to the root command
+				rootCmd.AddCommand(externalCmd)
+				addedCommands[subcommandName] = true
+			}
+		}
+	}
 }
 
 // Execute invokes the command.
 func Execute(version string) error {
-    if err := newRootCmd(version).Execute(); err != nil {
-        return fmt.Errorf("error executing root command: %w", err)
-    }
+	if err := newRootCmd(version).Execute(); err != nil {
+		return fmt.Errorf("error executing root command: %w", err)
+	}
 
-    return nil
+	return nil
 }
