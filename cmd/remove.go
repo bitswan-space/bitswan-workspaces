@@ -55,8 +55,8 @@ const (
 
 func newRemoveCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:          "remove <gitops-name>",
-		Short:        "bitswan-gitops remove",
+		Use:          "remove <workspace-name>",
+		Short:        "bitswan workspace remove",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -98,7 +98,7 @@ func checkContainerExists(imageName string) (bool, error) {
 
 // Function to delete a Docker image
 func deleteDockerImage(image string) error {
-	cmd := exec.Command("docker", "rmi", "-f", image) // -f forces deletion
+	cmd := exec.Command("docker", "rmi", image) // -f forces deletion
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
