@@ -117,6 +117,11 @@ func GetListAutomations(workspaceName string) ([]Automation, error) {
 	fmt.Printf("%s%-8s %-20s %-12s %-12s %-8s %-20s %-20s%s\n", bold, "RUNNING", "NAME", "STATE", "STATUS", "ACTIVE", "DEPLOYMENT ID", "CREATED AT", reset)
 	fmt.Println(gray + "--------------------------------------------------------------------------------------------------------" + reset)
 
+	if len(automations) == 0 {
+		fmt.Println(gray + "No automations found." + reset)
+		return nil, nil
+	}
+
 	// Print each automation
 	for _, a := range automations {
 		runningStatus := redDot // Default to red (inactive)
