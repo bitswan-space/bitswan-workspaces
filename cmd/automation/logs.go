@@ -34,7 +34,7 @@ func newLogsCmd() *cobra.Command {
 
 			err = getLogsFromAutomation(workspaceName, automationDeploymentId, lines)
 			if err != nil {
-				return fmt.Errorf("failed to list automations: %v", err)
+				return fmt.Errorf("failed to get logs from an automation: %v", err)
 			}
 			return nil
 		},
