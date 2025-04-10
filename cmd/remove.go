@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,21 +12,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/bitswan-space/bitswan-workspaces/cmd/automation"
 	"github.com/bitswan-space/bitswan-workspaces/internal/caddyapi"
 	"github.com/spf13/cobra"
 )
-
-// Automation represents the JSON structure
-type Automation struct {
-	ContainerID  string `json:"container_id"`
-	EndpointName string `json:"endpoint_name"`
-	CreatedAt    string `json:"created_at"`
-	Name         string `json:"name"`
-	State        string `json:"state"`
-	Status       string `json:"status"`
-	DeploymentID string `json:"deployment_id"`
-	Active       bool   `json:"active"`
-}
 
 // Docker compose only desired field
 type Compose struct {
@@ -169,7 +156,7 @@ func deleteHostsEntry(gitopsName string) {
 }
 
 // Remove automations
-func removeAutomations(automations []Automation, token, url string) {
+func removeAutomations(automations []automation.Automation, token, url string) {
 	client := &http.Client{}
 	for _, a := range automations {
 		fmt.Printf("Removing automation %s...\n", a.Name)
@@ -238,11 +225,9 @@ func removeGitops(gitopsName string) error {
 	defer resp.Body.Close()
 
 	// Parse the response
-	var automations []Automation
-	body, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal([]byte(body), &automations)
+	automations, err := automation.GetListAutomations(gitopsName)
 	if err != nil {
-		fmt.Println("Error decoding JSON:", err)
+		fmt.Println("Error:", err)
 	}
 
 	fmt.Println("Automations fetched successfully.")
