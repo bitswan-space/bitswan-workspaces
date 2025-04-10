@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -55,16 +54,6 @@ func newRemoveCmd() *cobra.Command {
 			}
 		},
 	}
-}
-
-// Parse custom timestamp format
-func parseTimestamp(timestamp string) string {
-	layout := "2006-01-02T15:04:05.999999"
-	t, err := time.Parse(layout, timestamp)
-	if err != nil {
-		return "Invalid Date"
-	}
-	return t.Format("02 Jan 2006 15:04") // Format as "DD MMM YYYY HH:MM"
 }
 
 func checkContainerExists(imageName string) (bool, error) {
@@ -229,31 +218,6 @@ func removeGitops(gitopsName string) error {
 	if err != nil {
 		fmt.Println("Error:", err)
 	}
-
-	fmt.Println("Automations fetched successfully.")
-	fmt.Print("The following automations are running in this gitops:\n\n")
-	// Print table header
-	fmt.Printf("%s%-8s %-20s %-12s %-10s %-20s %-20s%s\n", bold, "ACTIVE", "NAME", "STATE", "STATUS", "DEPLOYMENT ID", "CREATED AT", reset)
-	fmt.Println(gray + "-----------------------------------------------------------------------------------------" + reset)
-
-	// Print each automation
-	for _, a := range automations {
-		activeStatus := red // Default to red (inactive)
-		if a.Active {
-			activeStatus = green // Change to green if active
-		}
-
-		// Format created_at properly
-		createdAtFormatted := parseTimestamp(a.CreatedAt)
-
-		// Print formatted row
-		fmt.Printf("%-17s %-20s %-12s %-10s %-20s %-20s\n",
-			activeStatus, a.Name, a.State, a.Status, a.DeploymentID, createdAtFormatted)
-	}
-
-	// Footer info
-	fmt.Println(gray + "-----------------------------------------------------------------------------------------" + reset)
-	fmt.Println(yellow + "✔ Running containers are marked with a green dot.\n" + reset)
 
 	fmt.Printf("Are you sure you want to remove %s? (yes/no): \n", gitopsName)
 	fmt.Scanln(&confirm)
