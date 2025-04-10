@@ -22,7 +22,7 @@ func newStartCmd() *cobra.Command {
 			fmt.Printf("Starting an automation %s...\n", automationDeploymentId)
 			err = startAutomation(workspaceName, automationDeploymentId)
 			if err != nil {
-				return fmt.Errorf("failed to stop an automation: %v", err)
+				return fmt.Errorf("failed to start an automation: %v", err)
 			}
 			return nil
 		},
