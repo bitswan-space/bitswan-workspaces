@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -113,22 +112,13 @@ func GetListAutomations(workspaceName string) ([]Automation, error) {
 		panic(err)
 	}
 
-	// Create a new GET request
-	req, err := http.NewRequest("GET", metadata.GitOpsURL+"/automations/", nil)
+	url := fmt.Sprintf("%s/automations", metadata.GitOpsURL)
+	// Send the request
+	resp, err := SendAutomationRequest("GET", url, metadata.GitOpsSecret)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 
-	// Add headers
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+metadata.GitOpsSecret)
-
-	// Create HTTP client and send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
-	}
 	defer resp.Body.Close()
 
 	// Parse the response
@@ -174,8 +164,10 @@ func GetListAutomations(workspaceName string) ([]Automation, error) {
 		fmt.Printf("%-16s %-20s %-12s %-12s %-16s %-20s %-20s\n",
 			runningStatus, name, a.State, a.Status, activeStatus, deploymentId, createdAtFormatted)
 		fmt.Println(gray + "--------------------------------------------------------------------------------------------------------" + reset)
-
 	}
+
+	// Footer info
+	fmt.Println(yellow + "✔ Running containers are marked with a green dot.\n" + reset)
 
 	return automations, nil
 }

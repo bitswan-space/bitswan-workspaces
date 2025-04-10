@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -63,27 +62,15 @@ func getLogsFromAutomation(workspaceName string, automationDeploymentId string, 
 	}
 
 	// Create a new GET request
-	var req *http.Request
+	url := fmt.Sprintf("%s/automations/%s/logs", metadata.GitOpsURL, automationDeploymentId)
 	if lines > 0 {
-		req, err = http.NewRequest("GET", fmt.Sprintf("%s/automations/%s/logs?lines=%d", metadata.GitOpsURL, automationDeploymentId, lines), nil)
-	} else {
-		req, err = http.NewRequest("GET", fmt.Sprintf("%s/automations/%s/logs", metadata.GitOpsURL, automationDeploymentId), nil)
+		url += fmt.Sprintf("?lines=%d", lines)
 	}
-
+	resp, err := SendAutomationRequest("GET", url, metadata.GitOpsSecret)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
 
-	// Add headers
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+metadata.GitOpsSecret)
-
-	// Create HTTP client and send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
-	}
 	defer resp.Body.Close()
 
 	var automationLog AutomationLog
