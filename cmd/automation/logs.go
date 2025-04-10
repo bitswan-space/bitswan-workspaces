@@ -27,7 +27,13 @@ func newLogsCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get active workspace from config.toml: %v", err)
 			}
-			err = getLogsFromAutomation(workspaceName, automationDeploymentId)
+
+			lines, err := cmd.Flags().GetInt("lines")
+			if err != nil {
+				return fmt.Errorf("failed to parse lines flag: %v", err)
+			}
+
+			err = getLogsFromAutomation(workspaceName, automationDeploymentId, lines)
 			if err != nil {
 				return fmt.Errorf("failed to list automations: %v", err)
 			}
@@ -35,12 +41,12 @@ func newLogsCmd() *cobra.Command {
 		},
 	}
 
-	// Add subcommands to workspace
+	cmd.Flags().IntP("lines", "l", 0, "Number of log lines to show (default 0 for all logs)")
 
 	return cmd
 }
 
-func getLogsFromAutomation(workspaceName string, automationDeploymentId string) error {
+func getLogsFromAutomation(workspaceName string, automationDeploymentId string, lines int) error {
 	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
 	gitopsPath := bitswanPath + "workspaces/" + workspaceName
 	metadataPath := gitopsPath + "/metadata.yaml"
@@ -57,7 +63,13 @@ func getLogsFromAutomation(workspaceName string, automationDeploymentId string) 
 	}
 
 	// Create a new GET request
-	req, err := http.NewRequest("GET", metadata.GitOpsURL+"/automations/"+automationDeploymentId+"/logs", nil)
+	var req *http.Request
+	if lines > 0 {
+		req, err = http.NewRequest("GET", fmt.Sprintf("%s/automations/%s/logs?lines=%d", metadata.GitOpsURL, automationDeploymentId, lines), nil)
+	} else {
+		req, err = http.NewRequest("GET", fmt.Sprintf("%s/automations/%s/logs", metadata.GitOpsURL, automationDeploymentId), nil)
+	}
+
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
