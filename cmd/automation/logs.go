@@ -46,6 +46,8 @@ func newLogsCmd() *cobra.Command {
 func getLogsFromAutomation(workspaceName string, automationDeploymentId string, lines int) error {
 	metadata := getMetadata(workspaceName)
 
+	fmt.Println("Fetching automations logs...")
+
 	// Create a new GET request
 	url := fmt.Sprintf("%s/automations/%s/logs", metadata.GitOpsURL, automationDeploymentId)
 	if lines > 0 {
@@ -65,7 +67,8 @@ func getLogsFromAutomation(workspaceName string, automationDeploymentId string, 
 		return fmt.Errorf("error decoding JSON: %w", err)
 	}
 
-	fmt.Printf("Automation %s logs:\n", automationDeploymentId)
+	fmt.Printf("Automation %s logs fetched successfully.\n", automationDeploymentId)
+	fmt.Println("=========================================")
 	if automationLog.Status != "success" {
 		fmt.Printf("Status: %s\n", redCheck)
 		fmt.Println("No logs available => check name of the automation or if it is running")

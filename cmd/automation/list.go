@@ -92,6 +92,8 @@ func getWorkspaceName() (string, error) {
 func GetListAutomations(workspaceName string) ([]Automation, error) {
 	metadata := getMetadata(workspaceName)
 
+	fmt.Println("Fetching automations...")
+
 	url := fmt.Sprintf("%s/automations", metadata.GitOpsURL)
 	// Send the request
 	resp, err := SendAutomationRequest("GET", url, metadata.GitOpsSecret)
