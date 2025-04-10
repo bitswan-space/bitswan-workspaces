@@ -31,12 +31,14 @@ type Metadata struct {
 
 // ANSI color codes for terminal
 const (
-	green  = "\033[32m●\033[0m" // Green dot
-	red    = "\033[31m●\033[0m" // Red dot
-	bold   = "\033[1m"
-	reset  = "\033[0m"
-	gray   = "\033[90m"
-	yellow = "\033[33m"
+	greenDot   = "\033[32m🟢\033[0m" // Green circle emoji
+	redDot     = "\033[31m🔴\033[0m" // Red circle emoji
+	greenCheck = "\033[32m✅\033[0m" // Green check
+	redCheck   = "\033[31m❌\033[0m" // Red check
+	bold       = "\033[1m"
+	reset      = "\033[0m"
+	gray       = "\033[90m"
+	yellow     = "\033[33m"
 )
 
 func newRemoveCmd() *cobra.Command {
