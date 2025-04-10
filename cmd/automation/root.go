@@ -27,6 +27,7 @@ func NewAutomationCmd() *cobra.Command {
 
 	cmd.AddCommand(newListCmd())
 	cmd.AddCommand(newLogsCmd())
+	cmd.AddCommand(newStopCmd())
 
 	return cmd
 }
