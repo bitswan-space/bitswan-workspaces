@@ -45,12 +45,14 @@ type Metadata struct {
 
 // ANSI color codes for terminal
 const (
-	green  = "\033[32m●\033[0m" // Green dot
-	red    = "\033[31m●\033[0m" // Red dot
-	bold   = "\033[1m"
-	reset  = "\033[0m"
-	gray   = "\033[90m"
-	yellow = "\033[33m"
+	greenDot   = "\033[32m🟢\033[0m" // Green circle emoji
+	redDot     = "\033[31m🔴\033[0m" // Red circle emoji
+	greenCheck = "\033[32m✅\033[0m" // Green check
+	redCheck   = "\033[31m❌\033[0m" // Red check
+	bold       = "\033[1m"
+	reset      = "\033[0m"
+	gray       = "\033[90m"
+	yellow     = "\033[33m"
 )
 
 func newRemoveCmd() *cobra.Command {
@@ -248,26 +250,42 @@ func removeGitops(gitopsName string) error {
 	fmt.Println("Automations fetched successfully.")
 	fmt.Print("The following automations are running in this gitops:\n\n")
 	// Print table header
-	fmt.Printf("%s%-8s %-20s %-12s %-10s %-20s %-20s%s\n", bold, "ACTIVE", "NAME", "STATE", "STATUS", "DEPLOYMENT ID", "CREATED AT", reset)
-	fmt.Println(gray + "-----------------------------------------------------------------------------------------" + reset)
+	fmt.Printf("%s%-8s %-20s %-12s %-12s %-8s %-20s %-20s%s\n", bold, "RUNNING", "NAME", "STATE", "STATUS", "ACTIVE", "DEPLOYMENT ID", "CREATED AT", reset)
+	fmt.Println(gray + "--------------------------------------------------------------------------------------------------------" + reset)
 
 	// Print each automation
 	for _, a := range automations {
-		activeStatus := red // Default to red (inactive)
+		runningStatus := redDot // Default to red (inactive)
+		if a.State == "running" {
+			runningStatus = greenDot // Change to green if active
+		}
+
+		activeStatus := redCheck // Default to red (inactive)
 		if a.Active {
-			activeStatus = green // Change to green if active
+			activeStatus = greenCheck // Change to green if active
 		}
 
 		// Format created_at properly
 		createdAtFormatted := parseTimestamp(a.CreatedAt)
 
+		name := a.Name
+		if len(name) > 20 {
+			name = name[:15] + "..."
+		}
+
+		deploymentId := a.DeploymentID
+		if len(a.DeploymentID) > 20 {
+			deploymentId = a.DeploymentID[:15] + "..."
+		}
+
 		// Print formatted row
-		fmt.Printf("%-17s %-20s %-12s %-10s %-20s %-20s\n",
-			activeStatus, a.Name, a.State, a.Status, a.DeploymentID, createdAtFormatted)
+		fmt.Printf("%-16s %-20s %-12s %-12s %-16s %-20s %-20s\n",
+			runningStatus, name, a.State, a.Status, activeStatus, deploymentId, createdAtFormatted)
+		fmt.Println(gray + "--------------------------------------------------------------------------------------------------------" + reset)
+
 	}
 
 	// Footer info
-	fmt.Println(gray + "-----------------------------------------------------------------------------------------" + reset)
 	fmt.Println(yellow + "✔ Running containers are marked with a green dot.\n" + reset)
 
 	fmt.Printf("Are you sure you want to remove %s? (yes/no): \n", gitopsName)
