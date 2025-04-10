@@ -2,33 +2,19 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/bitswan-space/bitswan-workspaces/cmd/automation"
 	"github.com/bitswan-space/bitswan-workspaces/internal/caddyapi"
 	"github.com/spf13/cobra"
 )
-
-// Automation represents the JSON structure
-type Automation struct {
-	ContainerID  string `json:"container_id"`
-	EndpointName string `json:"endpoint_name"`
-	CreatedAt    string `json:"created_at"`
-	Name         string `json:"name"`
-	State        string `json:"state"`
-	Status       string `json:"status"`
-	DeploymentID string `json:"deployment_id"`
-	Active       bool   `json:"active"`
-}
 
 // Docker compose only desired field
 type Compose struct {
@@ -45,14 +31,8 @@ type Metadata struct {
 
 // ANSI color codes for terminal
 const (
-	greenDot   = "\033[32m🟢\033[0m" // Green circle emoji
-	redDot     = "\033[31m🔴\033[0m" // Red circle emoji
-	greenCheck = "\033[32m✅\033[0m" // Green check
-	redCheck   = "\033[31m❌\033[0m" // Red check
-	bold       = "\033[1m"
-	reset      = "\033[0m"
-	gray       = "\033[90m"
-	yellow     = "\033[33m"
+	reset  = "\033[0m"
+	yellow = "\033[33m"
 )
 
 func newRemoveCmd() *cobra.Command {
@@ -70,16 +50,6 @@ func newRemoveCmd() *cobra.Command {
 			}
 		},
 	}
-}
-
-// Parse custom timestamp format
-func parseTimestamp(timestamp string) string {
-	layout := "2006-01-02T15:04:05.999999"
-	t, err := time.Parse(layout, timestamp)
-	if err != nil {
-		return "Invalid Date"
-	}
-	return t.Format("02 Jan 2006 15:04") // Format as "DD MMM YYYY HH:MM"
 }
 
 func checkContainerExists(imageName string) (bool, error) {
@@ -171,7 +141,7 @@ func deleteHostsEntry(gitopsName string) {
 }
 
 // Remove automations
-func removeAutomations(automations []Automation, token, url string) {
+func removeAutomations(automations []automation.Automation, token, url string) {
 	client := &http.Client{}
 	for _, a := range automations {
 		fmt.Printf("Removing automation %s...\n", a.Name)
@@ -240,53 +210,10 @@ func removeGitops(gitopsName string) error {
 	defer resp.Body.Close()
 
 	// Parse the response
-	var automations []Automation
-	body, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal([]byte(body), &automations)
+	automations, err := automation.GetListAutomations(gitopsName)
 	if err != nil {
-		fmt.Println("Error decoding JSON:", err)
+		fmt.Println("Error:", err)
 	}
-
-	fmt.Println("Automations fetched successfully.")
-	fmt.Print("The following automations are running in this gitops:\n\n")
-	// Print table header
-	fmt.Printf("%s%-8s %-20s %-12s %-12s %-8s %-20s %-20s%s\n", bold, "RUNNING", "NAME", "STATE", "STATUS", "ACTIVE", "DEPLOYMENT ID", "CREATED AT", reset)
-	fmt.Println(gray + "--------------------------------------------------------------------------------------------------------" + reset)
-
-	// Print each automation
-	for _, a := range automations {
-		runningStatus := redDot // Default to red (inactive)
-		if a.State == "running" {
-			runningStatus = greenDot // Change to green if active
-		}
-
-		activeStatus := redCheck // Default to red (inactive)
-		if a.Active {
-			activeStatus = greenCheck // Change to green if active
-		}
-
-		// Format created_at properly
-		createdAtFormatted := parseTimestamp(a.CreatedAt)
-
-		name := a.Name
-		if len(name) > 20 {
-			name = name[:15] + "..."
-		}
-
-		deploymentId := a.DeploymentID
-		if len(a.DeploymentID) > 20 {
-			deploymentId = a.DeploymentID[:15] + "..."
-		}
-
-		// Print formatted row
-		fmt.Printf("%-16s %-20s %-12s %-12s %-16s %-20s %-20s\n",
-			runningStatus, name, a.State, a.Status, activeStatus, deploymentId, createdAtFormatted)
-		fmt.Println(gray + "--------------------------------------------------------------------------------------------------------" + reset)
-
-	}
-
-	// Footer info
-	fmt.Println(yellow + "✔ Running containers are marked with a green dot.\n" + reset)
 
 	fmt.Printf("Are you sure you want to remove %s? (yes/no): \n", gitopsName)
 	fmt.Scanln(&confirm)

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bitswan-space/bitswan-workspaces/cmd/automation"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +22,18 @@ func newRootCmd(version string) *cobra.Command {
 
 	cmd.AddCommand(newVersionCmd(version)) // version subcommand
 	cmd.AddCommand(newWorkspaceCmd())      // workspace subcommand
+
+	// Check if the configuration file exists and has an active workspace
+	configPath := filepath.Join(os.Getenv("HOME"), ".config", "bitswan", "config.toml")
+	if _, err := os.Stat(configPath); err == nil {
+		// File exists, read and parse it
+		configData, err := os.ReadFile(configPath)
+		if err == nil {
+			if strings.Contains(string(configData), "active_workspace = \"") {
+				cmd.AddCommand(automation.NewAutomationCmd())
+			}
+		}
+	}
 
 	// Find and add external commands
 	addExternalCommands(cmd)
@@ -43,6 +56,7 @@ func newWorkspaceCmd() *cobra.Command {
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newUpdateCmd())
 	cmd.AddCommand(newRemoveCmd())
+	cmd.AddCommand(newSelectCmd())
 
 	return cmd
 }
