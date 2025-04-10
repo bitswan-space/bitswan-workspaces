@@ -1,0 +1,98 @@
+package automation
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
+)
+
+type AutomationLog struct {
+	Status string   `json:"status"`
+	Logs   []string `json:"logs"`
+}
+
+func newLogsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "logs",
+		Short: "Get logs for automation",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			workspaceName, err := getWorkspaceName()
+			automationDeploymentId := args[0]
+			if err != nil {
+				return fmt.Errorf("failed to get active workspace from config.toml: %v", err)
+			}
+			err = getLogsFromAutomation(workspaceName, automationDeploymentId)
+			if err != nil {
+				return fmt.Errorf("failed to list automations: %v", err)
+			}
+			return nil
+		},
+	}
+
+	// Add subcommands to workspace
+
+	return cmd
+}
+
+func getLogsFromAutomation(workspaceName string, automationDeploymentId string) error {
+	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
+	gitopsPath := bitswanPath + "workspaces/" + workspaceName
+	metadataPath := gitopsPath + "/metadata.yaml"
+
+	data, err := os.ReadFile(metadataPath)
+	if err != nil {
+		panic(err)
+	}
+
+	var metadata Metadata
+	err = yaml.Unmarshal(data, &metadata)
+	if err != nil {
+		panic(err)
+	}
+
+	// Create a new GET request
+	req, err := http.NewRequest("GET", metadata.GitOpsURL+"/automations/"+automationDeploymentId+"/logs", nil)
+	if err != nil {
+		return fmt.Errorf("error creating request: %w", err)
+	}
+
+	// Add headers
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", "Bearer "+metadata.GitOpsSecret)
+
+	// Create HTTP client and send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error creating request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var automationLog AutomationLog
+	body, _ := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal([]byte(body), &automationLog)
+	if err != nil {
+		return fmt.Errorf("error decoding JSON: %w", err)
+	}
+
+	fmt.Printf("Automation %s logs:\n", automationDeploymentId)
+	if automationLog.Status != "success" {
+		fmt.Printf("Status: %s\n", redCheck)
+		fmt.Println("No logs available => check name of the automation or if it is running")
+		return nil
+	} else {
+		fmt.Printf("Status: %s\n", greenCheck)
+	}
+	fmt.Println("Logs:")
+	for _, log := range automationLog.Logs {
+		fmt.Printf("  %s\n", log)
+	}
+
+	return nil
+}
