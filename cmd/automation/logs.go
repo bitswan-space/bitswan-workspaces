@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 type AutomationLog struct {
@@ -46,20 +44,7 @@ func newLogsCmd() *cobra.Command {
 }
 
 func getLogsFromAutomation(workspaceName string, automationDeploymentId string, lines int) error {
-	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
-	gitopsPath := bitswanPath + "workspaces/" + workspaceName
-	metadataPath := gitopsPath + "/metadata.yaml"
-
-	data, err := os.ReadFile(metadataPath)
-	if err != nil {
-		panic(err)
-	}
-
-	var metadata Metadata
-	err = yaml.Unmarshal(data, &metadata)
-	if err != nil {
-		panic(err)
-	}
+	metadata := getMetadata(workspaceName)
 
 	// Create a new GET request
 	url := fmt.Sprintf("%s/automations/%s/logs", metadata.GitOpsURL, automationDeploymentId)

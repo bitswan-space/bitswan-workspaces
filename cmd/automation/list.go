@@ -10,7 +10,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 type Automation struct {
@@ -22,12 +21,6 @@ type Automation struct {
 	Status       string `json:"status"`
 	DeploymentID string `json:"deployment_id"`
 	Active       bool   `json:"active"`
-}
-
-// Metadata only desired field
-type Metadata struct {
-	GitOpsURL    string `yaml:"gitops-url"`
-	GitOpsSecret string `yaml:"gitops-secret"`
 }
 
 type Config struct {
@@ -97,20 +90,7 @@ func getWorkspaceName() (string, error) {
 }
 
 func GetListAutomations(workspaceName string) ([]Automation, error) {
-	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
-	gitopsPath := bitswanPath + "workspaces/" + workspaceName
-	metadataPath := gitopsPath + "/metadata.yaml"
-
-	data, err := os.ReadFile(metadataPath)
-	if err != nil {
-		panic(err)
-	}
-
-	var metadata Metadata
-	err = yaml.Unmarshal(data, &metadata)
-	if err != nil {
-		panic(err)
-	}
+	metadata := getMetadata(workspaceName)
 
 	url := fmt.Sprintf("%s/automations", metadata.GitOpsURL)
 	// Send the request
