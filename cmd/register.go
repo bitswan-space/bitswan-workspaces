@@ -45,7 +45,7 @@ func newRegisterCmd() *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := sendRequest("POST", fmt.Sprintf("http://%s:8000/api/cli/register/", aocUrl), nil)
+			resp, err := sendRequest("POST", fmt.Sprintf("http://%s:8000/api/cli/register/", aocUrl))
 			if err != nil {
 				return fmt.Errorf("error sending request: %w", err)
 			}
@@ -83,7 +83,7 @@ func newRegisterCmd() *cobra.Command {
 				case <-timeout:
 					return fmt.Errorf("timeout waiting for device authorization")
 				case <-ticker.C:
-					resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s", aocUrl, registerPostAnswer.DeviceCode), nil)
+					resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, registerPostAnswer.DeviceCode, serverName))
 					if err != nil {
 						return fmt.Errorf("error sending request: %w", err)
 					}
@@ -92,6 +92,10 @@ func newRegisterCmd() *cobra.Command {
 
 					if resp.StatusCode == http.StatusOK {
 						break outerLoop
+					}
+
+					if resp.StatusCode == http.StatusInternalServerError {
+						return fmt.Errorf("internal error")
 					}
 				}
 			}
@@ -105,6 +109,9 @@ func newRegisterCmd() *cobra.Command {
 
 			saveAutomationServerYaml(aocUrl, "", registerGetAnswer.AccessToken)
 
+			fmt.Printf("Successfully registered workspace as automation server. You can close the browser tab.\n")
+			fmt.Println("Access token, AOC BE URL, and EMQX URL have been saved to ~/.config/bitswan/aoc/automation_server.yaml.")
+
 			return nil
 		},
 	}
@@ -115,7 +122,7 @@ func newRegisterCmd() *cobra.Command {
 	return cmd
 }
 
-func sendRequest(method, url string, payload []string) (*http.Response, error) {
+func sendRequest(method, url string) (*http.Response, error) {
 	// Create a new GET request
 	req, err := http.NewRequest(method, url, nil)
 
