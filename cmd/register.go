@@ -35,6 +35,12 @@ type TokenResponse struct {
 	Scope            string `json:"scope"`
 }
 
+type AutomationServerYaml struct {
+	AocBeURL    string `yaml:"aoc_be_url"`
+	EmqxURL     string `yaml:"emqx_url"`
+	AccessToken string `yaml:"access_token"`
+}
+
 func newRegisterCmd() *cobra.Command {
 	var serverName string
 	var aocUrl string
@@ -143,12 +149,6 @@ func sendRequest(method, url string) (*http.Response, error) {
 }
 
 func saveAutomationServerYaml(aocBeURL string, emqxURL string, accessToken string) error {
-	type AutomationServerYaml struct {
-		AocBeURL    string `yaml:"aoc_be_url"`
-		EmqxURL     string `yaml:"emqx_url"`
-		AccessToken string `yaml:"access_token"`
-	}
-
 	automationServerYaml := AutomationServerYaml{
 		AocBeURL:    aocBeURL,
 		EmqxURL:     emqxURL,
