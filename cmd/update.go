@@ -25,15 +25,15 @@ func newUpdateCmd() *cobra.Command {
 		Short:        "bitswan workspace update",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			workspaceName := args[0]
 			fmt.Printf("Updating Gitops: %s...\n", workspaceName)
 			err := updateGitops(workspaceName, o)
 			if err != nil {
-				fmt.Errorf("Error updating workspace: %w", err)
-				return
+				return fmt.Errorf("error updating workspace: %w", err)
 			}
 			fmt.Printf("Gitops %s updated successfully!\n", workspaceName)
+			return nil
 		},
 	}
 
@@ -51,7 +51,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 	fmt.Println("Ensuring examples are up to date...")
 	err := EnsureExamples(repoPath, true)
 	if err != nil {
-		return fmt.Errorf("Failed to download examples: %w", err)
+		return fmt.Errorf("failed to download examples: %w", err)
 	}
 	fmt.Println("Examples are up to date!")
 
@@ -61,7 +61,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 	if gitopsImage == "" {
 		gitopsLatestVersion, err := dockerhub.GetLatestDockerHubVersion("https://hub.docker.com/v2/repositories/bitswan/gitops/tags/")
 		if err != nil {
-			panic(fmt.Errorf("Failed to get latest BitSwan GitOps version: %w", err))
+			panic(fmt.Errorf("failed to get latest BitSwan GitOps version: %w", err))
 		}
 		gitopsImage = "bitswan/gitops:" + gitopsLatestVersion
 	}
@@ -82,7 +82,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 
 	data, err := os.ReadFile(dataPath)
 	if err != nil {
-		return fmt.Errorf("Failed to read metadata.yaml: %w", err)
+		return fmt.Errorf("failed to read metadata.yaml: %w", err)
 	}
 
 	// Config represents the structure of the YAML file
@@ -94,19 +94,19 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 	}
 
 	if err := yaml.Unmarshal(data, &metadata); err != nil {
-		return fmt.Errorf("Failed to unmarshal metadata.yaml: %w", err)
+		return fmt.Errorf("failed to unmarshal metadata.yaml: %w", err)
 	}
 
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == ""
 	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, workspaceName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
 	if err != nil {
-		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
+		panic(fmt.Errorf("failed to create docker-compose file: %w", err))
 	}
 
 	dockerComposeFilePath := filepath.Join(gitopsConfig, "deployment", "/docker-compose.yml")
 	if err := os.WriteFile(dockerComposeFilePath, []byte(compose), 0755); err != nil {
-		panic(fmt.Errorf("Failed to write docker-compose file: %w", err))
+		panic(fmt.Errorf("failed to write docker-compose file: %w", err))
 	}
 
 	// 3. Restart gitops and editor services
@@ -125,7 +125,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("Failed to execute %v: %w", args, err)
+			return fmt.Errorf("failed to execute %v: %w", args, err)
 		}
 	}
 	fmt.Println("Services restarted!")
