@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type RegisterPostAnswer struct {
+type DeviceAuthorizationResponse struct {
 	DeviceCode              string `json:"device_code"`
 	UserCode                string `json:"user_code"`
 	VerificationURI         string `json:"verification_uri"`
@@ -24,7 +24,7 @@ type RegisterPostAnswer struct {
 	Interval                int    `json:"interval"`
 }
 
-type RegisterGetAnswer struct {
+type TokenResponse struct {
 	AccessToken      string `json:"access_token"`
 	ExpiresIn        int    `json:"expires_in"`
 	RefreshExpiresIn int    `json:"refresh_expires_in"`
@@ -55,16 +55,16 @@ func newRegisterCmd() *cobra.Command {
 				return fmt.Errorf("failed to register workspace: %s", resp.Status)
 			}
 
-			var registerPostAnswer RegisterPostAnswer
+			var deviceAuthorizationResponse DeviceAuthorizationResponse
 			body, _ := ioutil.ReadAll(resp.Body)
-			err = json.Unmarshal([]byte(body), &registerPostAnswer)
+			err = json.Unmarshal([]byte(body), &deviceAuthorizationResponse)
 			if err != nil {
 				return fmt.Errorf("error decoding JSON: %w", err)
 			}
 
 			localHost := "localhost:8080" // Replace with your desired host (include port if needed)
 
-			updatedVerificationURIComplete, err := url.Parse(registerPostAnswer.VerificationURIComplete)
+			updatedVerificationURIComplete, err := url.Parse(deviceAuthorizationResponse.VerificationURIComplete)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -83,7 +83,7 @@ func newRegisterCmd() *cobra.Command {
 				case <-timeout:
 					return fmt.Errorf("timeout waiting for device authorization")
 				case <-ticker.C:
-					resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, registerPostAnswer.DeviceCode, serverName))
+					resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName))
 					if err != nil {
 						return fmt.Errorf("error sending request: %w", err)
 					}
@@ -100,14 +100,14 @@ func newRegisterCmd() *cobra.Command {
 				}
 			}
 
-			var registerGetAnswer RegisterGetAnswer
+			var tokenResponse TokenResponse
 			body, _ = ioutil.ReadAll(resp.Body)
-			err = json.Unmarshal([]byte(body), &registerGetAnswer)
+			err = json.Unmarshal([]byte(body), &tokenResponse)
 			if err != nil {
 				return fmt.Errorf("error decoding JSON: %w", err)
 			}
 
-			saveAutomationServerYaml(aocUrl, "", registerGetAnswer.AccessToken)
+			saveAutomationServerYaml(aocUrl, "", tokenResponse.AccessToken)
 
 			fmt.Printf("Successfully registered workspace as automation server. You can close the browser tab.\n")
 			fmt.Println("Access token, AOC BE URL, and EMQX URL have been saved to ~/.config/bitswan/aoc/automation_server.yaml.")
