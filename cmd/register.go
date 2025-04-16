@@ -44,6 +44,7 @@ type AutomationServerYaml struct {
 func newRegisterCmd() *cobra.Command {
 	var serverName string
 	var aocUrl string
+	intervalSeconds := 5
 
 	cmd := &cobra.Command{
 		Use:          "register",
@@ -79,31 +80,38 @@ func newRegisterCmd() *cobra.Command {
 
 			fmt.Printf("Please visit the following URL to authorize the device:\n%s\n", updatedVerificationURIComplete.String())
 
-			timeout := time.After(1 * time.Minute)
-			ticker := time.NewTicker(5 * time.Second)
-			defer ticker.Stop()
-
-		outerLoop:
 			for {
-				select {
-				case <-timeout:
-					return fmt.Errorf("timeout waiting for device authorization")
-				case <-ticker.C:
-					resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName))
-					if err != nil {
-						return fmt.Errorf("error sending request: %w", err)
-					}
-
-					defer resp.Body.Close()
-
-					if resp.StatusCode == http.StatusOK {
-						break outerLoop
-					}
-
-					if resp.StatusCode == http.StatusInternalServerError {
-						return fmt.Errorf("internal error")
-					}
+				resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName))
+				if err != nil {
+					return fmt.Errorf("error sending request: %w", err)
 				}
+
+				defer resp.Body.Close()
+
+				if resp.StatusCode == http.StatusOK {
+					break
+				}
+
+				// Parse error response
+				var errResp map[string]interface{}
+				body, _ = ioutil.ReadAll(resp.Body)
+				if err := json.Unmarshal(body, &errResp); err != nil {
+					return fmt.Errorf("error parsing error response: %v", err)
+				}
+
+				switch errResp["error"] {
+				case "authorization_pending":
+					// keep polling
+				case "slow_down":
+					intervalSeconds += 5
+				case "expired_token", "access_denied":
+					return fmt.Errorf("authorization failed: %s", errResp["error"])
+				default:
+					return fmt.Errorf("unexpected error: %s", errResp["error"])
+				}
+
+				// Wait before next poll
+				time.Sleep(time.Duration(intervalSeconds) * time.Second)
 			}
 
 			var tokenResponse TokenResponse
@@ -138,6 +146,7 @@ func sendRequest(method, url string) (*http.Response, error) {
 
 	// Set the request headers
 	req.Header.Add("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Create HTTP client and send the request
 	client := &http.Client{}
