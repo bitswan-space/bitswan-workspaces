@@ -25,20 +25,21 @@ type DeviceAuthorizationResponse struct {
 }
 
 type TokenResponse struct {
-	AccessToken      string `json:"access_token"`
-	ExpiresIn        int    `json:"expires_in"`
-	RefreshExpiresIn int    `json:"refresh_expires_in"`
-	RefreshToken     string `json:"refresh_token"`
-	TokenType        string `json:"token_type"`
-	NotBeforePolicy  int    `json:"not-before-policy"`
-	SessionState     string `json:"session_state"`
-	Scope            string `json:"scope"`
+	AccessToken        string `json:"access_token"`
+	ExpiresIn          int    `json:"expires_in"`
+	RefreshExpiresIn   int    `json:"refresh_expires_in"`
+	RefreshToken       string `json:"refresh_token"`
+	TokenType          string `json:"token_type"`
+	NotBeforePolicy    int    `json:"not-before-policy"`
+	SessionState       string `json:"session_state"`
+	Scope              string `json:"scope"`
+	AutomationServerId string `json:"automation_server_id"`
 }
 
 type AutomationServerYaml struct {
-	AocBeURL    string `yaml:"aoc_be_url"`
-	EmqxURL     string `yaml:"emqx_url"`
-	AccessToken string `yaml:"access_token"`
+	AocBeURL           string `yaml:"aoc_be_url"`
+	AutomationServerId string `yaml:"automation_server_id"`
+	AccessToken        string `yaml:"access_token"`
 }
 
 func newRegisterCmd() *cobra.Command {
@@ -121,10 +122,10 @@ func newRegisterCmd() *cobra.Command {
 				return fmt.Errorf("error decoding JSON: %w", err)
 			}
 
-			saveAutomationServerYaml(aocUrl, "", tokenResponse.AccessToken)
+			saveAutomationServerYaml(aocUrl, tokenResponse.AutomationServerId, tokenResponse.AccessToken)
 
 			fmt.Printf("Successfully registered workspace as automation server. You can close the browser tab.\n")
-			fmt.Println("Access token, AOC BE URL, and EMQX URL have been saved to ~/.config/bitswan/aoc/automation_server.yaml.")
+			fmt.Println("Access token, AOC BE URL, and Automation server ID have been saved to ~/.config/bitswan/aoc/automation_server.yaml.")
 
 			return nil
 		},
@@ -157,11 +158,11 @@ func sendRequest(method, url string) (*http.Response, error) {
 	return resp, nil
 }
 
-func saveAutomationServerYaml(aocBeURL string, emqxURL string, accessToken string) error {
+func saveAutomationServerYaml(aocBeURL string, automationServerId string, accessToken string) error {
 	automationServerYaml := AutomationServerYaml{
-		AocBeURL:    aocBeURL,
-		EmqxURL:     emqxURL,
-		AccessToken: accessToken,
+		AocBeURL:           aocBeURL,
+		AutomationServerId: automationServerId,
+		AccessToken:        accessToken,
 	}
 
 	aocDir := filepath.Join(os.Getenv("HOME"), ".config", "bitswan", "aoc")
