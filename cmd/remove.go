@@ -41,13 +41,13 @@ func newRemoveCmd() *cobra.Command {
 		Short:        "bitswan workspace remove",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			workspaceName := args[0]
 			err := removeGitops(workspaceName)
 			if err != nil {
-				fmt.Errorf("Error removing gitops: %w", err)
-				return
+				return fmt.Errorf("error removing gitops: %w", err)
 			}
+			return nil
 		},
 	}
 }
@@ -197,7 +197,7 @@ func removeGitops(workspaceName string) error {
 	for _, a := range automations {
 		err := automation.RemoveAutomation(workspaceName, a.DeploymentID)
 		if err != nil {
-			return fmt.Errorf("error removing automation %s: %w\n", a.Name, err)
+			return fmt.Errorf("error removing automation %s: %w", a.Name, err)
 		}
 	}
 	fmt.Println("Automations removed successfully.")
@@ -212,7 +212,7 @@ func removeGitops(workspaceName string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Failed to execute: %w", err)
+		return fmt.Errorf("failed to execute: %w", err)
 	}
 	fmt.Println("Docker containers and volumes removed successfully.")
 
@@ -256,7 +256,7 @@ func removeGitops(workspaceName string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Failed to execute: %w", err)
+		return fmt.Errorf("failed to execute: %w", err)
 	}
 	fmt.Println("GitOps folder removed successfully.")
 
@@ -264,7 +264,7 @@ func removeGitops(workspaceName string) error {
 	fmt.Println("Removing caddy files...")
 	err = caddyapi.DeleteCaddyRecords(workspaceName)
 	if err != nil {
-		return fmt.Errorf("Error removing caddy files: %w", err)
+		return fmt.Errorf("error removing caddy files: %w", err)
 	}
 	fmt.Println("Caddy files removed successfully.")
 
