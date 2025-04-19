@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
+	"github.com/bitswan-space/bitswan-workspaces/internal/config"
 )
 
 type Automation struct {
@@ -21,10 +19,6 @@ type Automation struct {
 	Status       string `json:"status"`
 	DeploymentID string `json:"deployment_id"`
 	Active       bool   `json:"active"`
-}
-
-type Config struct {
-	ActiveWorkspace string `toml:"active_workspace"`
 }
 
 // ANSI color codes for terminal
@@ -45,7 +39,7 @@ func newListCmd() *cobra.Command {
 		Short: "List available bitswan workspace automations",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			workspaceName, err := getWorkspaceName()
+			workspaceName, err := config.GetWorkspaceName()
 			if err != nil {
 				return fmt.Errorf("failed to get active workspace from config.toml: %v", err)
 			}
@@ -70,23 +64,6 @@ func parseTimestamp(timestamp string) string {
 		return "Invalid Date"
 	}
 	return t.Format("02 Jan 2006 15:04") // Format as "DD MMM YYYY HH:MM"
-}
-
-func getWorkspaceName() (string, error) {
-	var conf Config
-	configPath := filepath.Join(os.Getenv("HOME"), ".config", "bitswan", "config.toml")
-
-	file, err := os.Open(configPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open config.toml: %v", err)
-	}
-	defer file.Close()
-
-	if _, err := toml.NewDecoder(file).Decode(&conf); err != nil {
-		return "", fmt.Errorf("failed to decode config.toml: %v", err)
-	}
-
-	return conf.ActiveWorkspace, nil
 }
 
 func GetListAutomations(workspaceName string) ([]Automation, error) {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/spf13/cobra"
+	"github.com/bitswan-space/bitswan-workspaces/internal/config"
 )
 
 func newStartCmd() *cobra.Command {
@@ -13,7 +14,7 @@ func newStartCmd() *cobra.Command {
 		Short: "Start the automation",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			workspaceName, err := getWorkspaceName()
+			workspaceName, err := config.GetWorkspaceName()
 			automationDeploymentId := args[0]
 			if err != nil {
 				return fmt.Errorf("failed to get active workspace from config.toml: %v", err)
