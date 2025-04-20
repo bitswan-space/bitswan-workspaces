@@ -6,46 +6,44 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
+	"github.com/spf13/cobra"
 )
 
-
 func newSelectCmd() *cobra.Command {
-    return &cobra.Command{
-        Use:   "select <workspace>",
-        Short: "Select a workspace for activation",
-        Args:  cobra.ExactArgs(1),
-        RunE: func(cmd *cobra.Command, args []string) error {
-            workspace := args[0]
-            bitswanDir := filepath.Join(os.Getenv("HOME"), ".config", "bitswan")
+	return &cobra.Command{
+		Use:   "select <workspace>",
+		Short: "Select a workspace for activation",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			workspace := args[0]
+			bitswanDir := filepath.Join(os.Getenv("HOME"), ".config", "bitswan")
 
-            // Validate the workspace
-            err := checkValidWorkspace(workspace, bitswanDir)
-            if err != nil {
-                return fmt.Errorf("error: %w", err)
-            }
+			// Validate the workspace
+			err := checkValidWorkspace(workspace, bitswanDir)
+			if err != nil {
+				return fmt.Errorf("error: %w", err)
+			}
 
-            // Load the existing configuration
-            conf, err := config.GetConfig()
-            if err != nil {
-                return err
-            }
+			// Load the existing configuration
+			conf, err := config.GetConfig()
+			if err != nil {
+				return err
+			}
 
-            // Update the active workspace
-            conf.ActiveWorkspace = workspace
+			// Update the active workspace
+			conf.ActiveWorkspace = workspace
 
-            // Save the updated configuration
-            if err := conf.Save(); err != nil {
-                return err
-            }
+			// Save the updated configuration
+			if err := conf.Save(); err != nil {
+				return err
+			}
 
-            fmt.Printf("Active workspace set to '%s' in config file.\n", workspace)
-            return nil
-        },
-    }
+			fmt.Printf("Active workspace set to '%s' in config file.\n", workspace)
+			return nil
+		},
+	}
 }
-
 
 func checkValidWorkspace(workspace string, bitswanDir string) error {
 	workspacesDir := filepath.Join(bitswanDir, "workspaces")

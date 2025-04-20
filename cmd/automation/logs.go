@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/bitswan-space/bitswan-workspaces/internal/ansi"
+	"github.com/bitswan-space/bitswan-workspaces/internal/automations"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +48,7 @@ func newLogsCmd() *cobra.Command {
 }
 
 func getLogsFromAutomation(workspaceName string, automationDeploymentId string, lines int) error {
-	metadata := getMetadata(workspaceName)
+	metadata := config.GetWorkspaceMetadata(workspaceName)
 
 	fmt.Println("Fetching automations logs...")
 
@@ -55,7 +57,7 @@ func getLogsFromAutomation(workspaceName string, automationDeploymentId string, 
 	if lines > 0 {
 		url += fmt.Sprintf("?lines=%d", lines)
 	}
-	resp, err := SendAutomationRequest("GET", url, metadata.GitOpsSecret)
+	resp, err := automations.SendAutomationRequest("GET", url, metadata.GitOpsSecret)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
@@ -76,11 +78,11 @@ func getLogsFromAutomation(workspaceName string, automationDeploymentId string, 
 	fmt.Printf("Automation %s logs fetched successfully.\n", automationDeploymentId)
 	fmt.Println("=========================================")
 	if automationLog.Status != "success" {
-		fmt.Printf("Status: %s\n", redCheck)
+		fmt.Printf("Status: %s\n", ansi.RedCheck)
 		fmt.Println("No logs available => check name of the automation or if it is running")
 		return nil
 	} else {
-		fmt.Printf("Status: %s\n", greenCheck)
+		fmt.Printf("Status: %s\n", ansi.GreenCheck)
 	}
 	fmt.Println("Logs:")
 	for _, log := range automationLog.Logs {

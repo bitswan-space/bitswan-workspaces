@@ -651,7 +651,17 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to create deployment directory: %w", err)
 	}
 
-	err = caddyapi.AddCaddyRecords(workspaceName, o.domain, inputCertsDir != "", o.noIde)
+	if inputCertsDir != "" {
+		if err := caddyapi.InstallTLSCerts(workspaceName, o.domain); err != nil {
+			return fmt.Errorf("Failed to install caddy certs %w", err)
+		}
+	}
+
+	// Register GitOps service
+	if err := caddyapi.RegisterServiceWithCaddy("gitops", workspaceName, o.domain, fmt.Sprintf("%s-gitops:8079", workspaceName)); err != nil {
+		return fmt.Errorf("failed to register GitOps service: %w", err)
+	}
+
 	if err != nil {
 		panic(fmt.Errorf("Failed to add Caddy records: %w", err))
 	}
