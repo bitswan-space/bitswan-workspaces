@@ -6,74 +6,46 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
+	"github.com/bitswan-space/bitswan-workspaces/internal/config"
 )
 
+
 func newSelectCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "select <workspace>",
-		Short: "Select a workspace for activation",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			workspace := args[0]
-			bitswanDir := filepath.Join(os.Getenv("HOME"), ".config", "bitswan")
+    return &cobra.Command{
+        Use:   "select <workspace>",
+        Short: "Select a workspace for activation",
+        Args:  cobra.ExactArgs(1),
+        RunE: func(cmd *cobra.Command, args []string) error {
+            workspace := args[0]
+            bitswanDir := filepath.Join(os.Getenv("HOME"), ".config", "bitswan")
 
-			err := checkValidWorkspace(workspace, bitswanDir)
-			if err != nil {
-				return fmt.Errorf("error: %w", err)
-			}
+            // Validate the workspace
+            err := checkValidWorkspace(workspace, bitswanDir)
+            if err != nil {
+                return fmt.Errorf("error: %w", err)
+            }
 
-			// Proceed to write the active workspace to the config file
-			configPath := filepath.Join(bitswanDir, "config.toml")
-			if _, err := os.Stat(configPath); os.IsNotExist(err) {
-				// Create the config file if it doesn't exist
-				if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
-					return fmt.Errorf("failed to create config directory: %w", err)
-				}
+            // Load the existing configuration
+            conf, err := config.GetConfig()
+            if err != nil {
+                return err
+            }
 
-				// Write the initial content
-				config := map[string]string{
-					"active_workspace": workspace,
-				}
-				file, err := os.Create(configPath)
-				if err != nil {
-					return fmt.Errorf("failed to create config file: %w", err)
-				}
-				defer file.Close()
+            // Update the active workspace
+            conf.ActiveWorkspace = workspace
 
-				if err := toml.NewEncoder(file).Encode(config); err != nil {
-					return fmt.Errorf("failed to write to config file: %w", err)
-				}
-				fmt.Println("Config file created at:", configPath)
-			} else {
-				// Update the existing config file
-				var config map[string]interface{}
-				if _, err := toml.DecodeFile(configPath, &config); err != nil {
-					return fmt.Errorf("failed to parse config file: %w", err)
-				}
+            // Save the updated configuration
+            if err := conf.Save(); err != nil {
+                return err
+            }
 
-				// Update the active_workspace key
-				config["active_workspace"] = workspace
-
-				// Write the updated content back to the file
-				file, err := os.Create(configPath)
-				if err != nil {
-					return fmt.Errorf("failed to open config file for writing: %w", err)
-				}
-				defer file.Close()
-
-				if err := toml.NewEncoder(file).Encode(config); err != nil {
-					return fmt.Errorf("failed to write to config file: %w", err)
-				}
-				fmt.Println("Updated active workspace in config file:", configPath)
-			}
-
-			fmt.Printf("Active workspace set to '%s' in config file.\n", workspace)
-			return nil
-		},
-	}
+            fmt.Printf("Active workspace set to '%s' in config file.\n", workspace)
+            return nil
+        },
+    }
 }
+
 
 func checkValidWorkspace(workspace string, bitswanDir string) error {
 	workspacesDir := filepath.Join(bitswanDir, "workspaces")
