@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -53,7 +54,7 @@ func newRegisterCmd() *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := sendRequest("POST", fmt.Sprintf("http://%s:8000/api/cli/register/", aocUrl))
+			resp, err := sendRequest("POST", fmt.Sprintf("http://%s:8000/api/cli/register/", aocUrl), nil, "")
 			if err != nil {
 				return fmt.Errorf("error sending request: %w", err)
 			}
@@ -82,7 +83,7 @@ func newRegisterCmd() *cobra.Command {
 			fmt.Printf("Please visit the following URL to authorize the device:\n%s\n", updatedVerificationURIComplete.String())
 
 			for {
-				resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName))
+				resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName), nil, "")
 				if err != nil {
 					return fmt.Errorf("error sending request: %w", err)
 				}
@@ -137,9 +138,9 @@ func newRegisterCmd() *cobra.Command {
 	return cmd
 }
 
-func sendRequest(method, url string) (*http.Response, error) {
+func sendRequest(method, url string, payload []byte, bearerToken string) (*http.Response, error) {
 	// Create a new GET request
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
@@ -147,7 +148,10 @@ func sendRequest(method, url string) (*http.Response, error) {
 
 	// Set the request headers
 	req.Header.Add("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
+	if bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+bearerToken)
+	}
 
 	// Create HTTP client and send the request
 	client := &http.Client{}
