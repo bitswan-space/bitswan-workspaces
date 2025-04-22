@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
-	"io"
-	"sync"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -46,6 +47,14 @@ type DockerNetwork struct {
 	Scope     string `json:"Scope"`
 }
 
+type MetadataInit struct {
+	Domain       string `yaml:"domain"`
+	EditorURL    string `yaml:"editor-url,omitempty"`
+	GitopsURL    string `yaml:"gitops-url"`
+	GitopsSecret string `yaml:"gitops-secret"`
+	WorkspaceId  int    `yaml:"workspace_id"`
+}
+
 func defaultInitOptions() *initOptions {
 	return &initOptions{}
 }
@@ -74,7 +83,6 @@ func newInitCmd() *cobra.Command {
 	return cmd
 }
 
-
 func checkNetworkExists(networkName string) (bool, error) {
 	// Run docker network ls command with JSON format
 	cmd := exec.Command("docker", "network", "ls", "--format=json")
@@ -102,73 +110,72 @@ func checkNetworkExists(networkName string) (bool, error) {
 }
 
 func runCommandVerbose(cmd *exec.Cmd, verbose bool) error {
-    var stdoutBuf, stderrBuf bytes.Buffer
+	var stdoutBuf, stderrBuf bytes.Buffer
 
-    if verbose {
-        // Set up pipes for real-time streaming
-        stdoutPipe, err := cmd.StdoutPipe()
-        if err != nil {
-            return fmt.Errorf("failed to create stdout pipe: %w", err)
-        }
+	if verbose {
+		// Set up pipes for real-time streaming
+		stdoutPipe, err := cmd.StdoutPipe()
+		if err != nil {
+			return fmt.Errorf("failed to create stdout pipe: %w", err)
+		}
 
-        stderrPipe, err := cmd.StderrPipe()
-        if err != nil {
-            return fmt.Errorf("failed to create stderr pipe: %w", err)
-        }
+		stderrPipe, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Errorf("failed to create stderr pipe: %w", err)
+		}
 
-        // Create multi-writers to both stream and capture output
-        stdoutWriter := io.MultiWriter(os.Stdout, &stdoutBuf)
-        stderrWriter := io.MultiWriter(os.Stderr, &stderrBuf)
+		// Create multi-writers to both stream and capture output
+		stdoutWriter := io.MultiWriter(os.Stdout, &stdoutBuf)
+		stderrWriter := io.MultiWriter(os.Stderr, &stderrBuf)
 
-        // Start the command
-        if err := cmd.Start(); err != nil {
-            return fmt.Errorf("failed to start command: %w", err)
-        }
+		// Start the command
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("failed to start command: %w", err)
+		}
 
-        // Copy stdout and stderr in separate goroutines
-        var wg sync.WaitGroup
-        wg.Add(2)
+		// Copy stdout and stderr in separate goroutines
+		var wg sync.WaitGroup
+		wg.Add(2)
 
-        go func() {
-            defer wg.Done()
-            io.Copy(stdoutWriter, stdoutPipe)
-        }()
+		go func() {
+			defer wg.Done()
+			io.Copy(stdoutWriter, stdoutPipe)
+		}()
 
-        go func() {
-            defer wg.Done()
-            io.Copy(stderrWriter, stderrPipe)
-        }()
+		go func() {
+			defer wg.Done()
+			io.Copy(stderrWriter, stderrPipe)
+		}()
 
-        // Wait for all output to be processed
-        wg.Wait()
+		// Wait for all output to be processed
+		wg.Wait()
 
-        // Wait for command to complete
-        err = cmd.Wait()
-        return err
-    } else {
-        // Not verbose, just capture output for potential error reporting
-        cmd.Stdout = &stdoutBuf
-        cmd.Stderr = &stderrBuf
+		// Wait for command to complete
+		err = cmd.Wait()
+		return err
+	} else {
+		// Not verbose, just capture output for potential error reporting
+		cmd.Stdout = &stdoutBuf
+		cmd.Stderr = &stderrBuf
 
-        err := cmd.Run()
+		err := cmd.Run()
 
-        // If command failed, print the captured output
-        if err != nil {
-            if stdoutBuf.Len() > 0 {
-                fmt.Println("Command stdout:")
-                fmt.Println(stdoutBuf.String())
-            }
+		// If command failed, print the captured output
+		if err != nil {
+			if stdoutBuf.Len() > 0 {
+				fmt.Println("Command stdout:")
+				fmt.Println(stdoutBuf.String())
+			}
 
-            if stderrBuf.Len() > 0 {
-                fmt.Println("Command stderr:")
-                fmt.Println(stderrBuf.String())
-            }
-        }
+			if stderrBuf.Len() > 0 {
+				fmt.Println("Command stderr:")
+				fmt.Println(stderrBuf.String())
+			}
+		}
 
-        return err
-    }
+		return err
+	}
 }
-
 
 // EnsureExamples clones the BitSwan repository if it doesn't exist,
 // or updates it if it already exists
@@ -313,15 +320,7 @@ func setHosts(workspaceName string, o *initOptions) error {
 
 // After displaying the information, save it to metadata.yaml
 func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool) error {
-	// Create metadata structure
-	type Metadata struct {
-		Domain       string `yaml:"domain"`
-		EditorURL    string `yaml:"editor-url,omitempty"`
-		GitopsURL    string `yaml:"gitops-url"`
-		GitopsSecret string `yaml:"gitops-secret"`
-	}
-
-	metadata := Metadata{
+	metadata := MetadataInit{
 		Domain:       domain,
 		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
 		GitopsSecret: token,
@@ -707,6 +706,206 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("GitOps deployment set up successfully!")
 
+	// Save metadata to file
+	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde); err != nil {
+		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
+	}
+
+	fmt.Println("Registering workspace...")
+	// Check if automation_server.yaml exists
+	automationServerConfig := filepath.Join(bitswanConfig, "aoc", "automation_server.yaml")
+	if _, err := os.Stat(automationServerConfig); !os.IsNotExist(err) {
+		// Read automation_server.yaml
+		yamlFile, err := os.ReadFile(automationServerConfig)
+		if err != nil {
+			return fmt.Errorf("failed to read automation_server.yaml: %w", err)
+		}
+
+		var automationConfig AutomationServerYaml
+		if err := yaml.Unmarshal(yamlFile, &automationConfig); err != nil {
+			return fmt.Errorf("failed to unmarshal automation_server.yaml: %w", err)
+		}
+
+		// TODO parse automation
+		// resp, err := sendRequest("POST", "http://localhost:8000/api/automation-servers/token", nil)
+
+		// if err != nil {
+		// 	return fmt.Errorf("error sending request: %w", err)
+		// }
+		// defer resp.Body.Close()
+		// TODO: Check the response
+
+		payload := map[string]interface{}{
+			"name":                 workspaceName,
+			"automation_server_id": automationConfig.AutomationServerId,
+			"keycloak_org_id":      "00000000-0000-0000-0000-000000000000",
+		}
+
+		jsonBytes, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		fmt.Println(string(jsonBytes))
+
+		resp, err := sendRequest("POST", "http://localhost:8000/api/workspaces/", jsonBytes, automationConfig.AccessToken)
+		if err != nil {
+			return fmt.Errorf("error sending request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			return fmt.Errorf("failed to register workspace: %s", resp.Status)
+		}
+
+		type WorkspacePostResponse struct {
+			Id                 int    `json:"id"`
+			Name               string `json:"name"`
+			KeycloakOrgId      string `json:"keycloak_org_id"`
+			AutomationServerId string `json:"automation_server_id"`
+			CreatedAt          string `json:"created_at"`
+			UpdatedAt          string `json:"updated_at"`
+		}
+
+		var workspacePostResponse WorkspacePostResponse
+		body, _ := ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal([]byte(body), &workspacePostResponse)
+		if err != nil {
+			return fmt.Errorf("error decoding JSON: %w", err)
+		}
+
+		fmt.Println("Workspace registered successfully!")
+
+		fmt.Println("------------WORKSPACE INFO------------")
+		fmt.Printf("Workspace ID: %d\n", workspacePostResponse.Id)
+		fmt.Printf("Workspace Name: %s\n", workspacePostResponse.Name)
+		fmt.Printf("Keycloak Org ID: %s\n", workspacePostResponse.KeycloakOrgId)
+		fmt.Printf("Automation Server ID: %s\n", workspacePostResponse.AutomationServerId)
+		fmt.Printf("Created At: %s\n", workspacePostResponse.CreatedAt)
+		fmt.Printf("Updated At: %s\n", workspacePostResponse.UpdatedAt)
+		fmt.Println("----------------------------------")
+
+		fmt.Println("Updating automation_server.yaml with workspace ID...")
+		// SAVE TO metadata.yaml
+		// Read metadata.yaml
+		metadataPath := gitopsConfig + "/metadata.yaml"
+		data, err := os.ReadFile(metadataPath)
+		if err != nil {
+			panic(err)
+		}
+
+		var metadata MetadataInit
+		err = yaml.Unmarshal(data, &metadata)
+		if err != nil {
+			panic(err)
+		}
+
+		metadata.WorkspaceId = workspacePostResponse.Id
+
+		yamlData, err := yaml.Marshal(metadata)
+		if err != nil {
+			return fmt.Errorf("failed to marshal automation server yaml: %w", err)
+		}
+
+		// Write back to file
+		if err := ioutil.WriteFile("metadata.yml", yamlData, 0644); err != nil {
+			return fmt.Errorf("failed to write to metadata yaml file: %w", err)
+		}
+
+		fmt.Println("Automation server workspace ID updated in metadata.yaml")
+
+		fmt.Println("Getting EMQX JWT for workspace...")
+		resp, err = sendRequest("GET", fmt.Sprintf("http://localhost:8000/api/workspaces/%d/emqx/jwt", workspacePostResponse.Id), nil, automationConfig.AccessToken)
+		if err != nil {
+			return fmt.Errorf("error sending request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to get EMQX JWT: %s", resp.Status)
+		}
+
+		type EmqxGetResponse struct {
+			Url   string `json:"url"`
+			Token string `json:"token"`
+		}
+
+		var emqxGetResponse EmqxGetResponse
+		body, _ = ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal([]byte(body), &emqxGetResponse)
+		if err != nil {
+			return fmt.Errorf("error decoding JSON: %w", err)
+		}
+
+		fmt.Println("EMQX JWT received successfully!")
+
+		fmt.Println("------------EMQX JWT INFO------------")
+		fmt.Printf("EMQX URL: %s\n", emqxGetResponse.Url)
+		fmt.Printf("EMQX JWT: %s\n", emqxGetResponse.Token)
+		fmt.Println("----------------------------------")
+
+		dockerComposeData, err := os.ReadFile(dockerComposePath)
+		if err != nil {
+			panic(err)
+		}
+
+		var rootNode yaml.Node
+		if err := yaml.Unmarshal(dockerComposeData, &rootNode); err != nil {
+			panic(err)
+		}
+
+		envNode, err := findServiceEnvironment(&rootNode, "bitswan-gitops")
+		if err != nil {
+			panic(err)
+		}
+
+		mqttEnvVars := []string{
+			"MQTT_USERNAME=" + fmt.Sprint(workspacePostResponse.Id),
+			"MQTT_PASSWORD=" + emqxGetResponse.Token,
+			"MQTT_BROKER=" + strings.Split(emqxGetResponse.Url, ":")[0],
+			"MQTT_PORT=1883",
+			"MQTT_TOPIC=/topology",
+		}
+
+		fmt.Println("Updating docker-compose.yml with EMQX JWT...")
+		fmt.Println(envNode.Kind)
+		fmt.Println(envNode.Content)
+
+		if envNode.Kind == yaml.SequenceNode {
+			// Handle list format (- VAR=value)
+			for _, v := range mqttEnvVars {
+				envNode.Content = append(envNode.Content, &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Tag:   "!!str",
+					Value: v,
+				})
+			}
+		} else if envNode.Kind == yaml.MappingNode {
+			// Handle map format (VAR: value)
+			for _, v := range mqttEnvVars {
+				key, value, _ := parseEnvVar(v)
+				envNode.Content = append(envNode.Content,
+					&yaml.Node{Kind: yaml.ScalarNode, Value: key},
+					&yaml.Node{Kind: yaml.ScalarNode, Value: value},
+				)
+			}
+		}
+
+		// 5. Write back to file
+		updatedData, err := yaml.Marshal(&rootNode)
+		if err != nil {
+			panic(err)
+		}
+
+		if err := os.WriteFile(dockerComposePath, updatedData, 0644); err != nil {
+			panic(err)
+		}
+
+		fmt.Println("Successfully updated docker-compose.yml")
+	} else {
+		fmt.Println("Automation server config not found, skipping workspace registration.")
+	}
+
 	projectName := workspaceName + "-site"
 	dockerComposeCom := exec.Command("docker", "compose", "-p", projectName, "up", "-d")
 
@@ -716,11 +915,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("BitSwan GitOps initialized successfully!")
-
-	// Save metadata to file
-	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde); err != nil {
-		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
-	}
 
 	// Get Bitswan Editor password from container
 	if !o.noIde {
@@ -743,4 +937,43 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("GitOps Secret: %s\n", token)
 
 	return nil
+}
+func findServiceEnvironment(root *yaml.Node, serviceName string) (*yaml.Node, error) {
+	// Navigate to the root mapping (key-value pairs)
+	if root.Kind != yaml.DocumentNode || len(root.Content) == 0 {
+		return nil, fmt.Errorf("invalid YAML structure")
+	}
+	rootMap := root.Content[0]
+
+	// Iterate through root keys to find "services"
+	for i := 0; i < len(rootMap.Content); i += 2 {
+		key := rootMap.Content[i]
+		if key.Value == "services" {
+			servicesMap := rootMap.Content[i+1]
+			// Iterate through services to find "app1"
+			for j := 0; j < len(servicesMap.Content); j += 2 {
+				serviceKey := servicesMap.Content[j]
+				if serviceKey.Value == serviceName {
+					serviceNode := servicesMap.Content[j+1]
+					// Find "environment" in the service
+					for k := 0; k < len(serviceNode.Content); k += 2 {
+						envKey := serviceNode.Content[k]
+						if envKey.Value == "environment" {
+							return serviceNode.Content[k+1], nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("service or environment not found")
+}
+
+func parseEnvVar(env string) (key, value string, err error) {
+	for i, c := range env {
+		if c == '=' {
+			return env[:i], env[i+1:], nil
+		}
+	}
+	return "", "", fmt.Errorf("invalid environment variable format")
 }
