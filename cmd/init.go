@@ -868,8 +868,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Println("Updating docker-compose.yml with EMQX JWT...")
-		fmt.Println(envNode.Kind)
-		fmt.Println(envNode.Content)
 
 		if envNode.Kind == yaml.SequenceNode {
 			// Handle list format (- VAR=value)
