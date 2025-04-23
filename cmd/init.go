@@ -319,11 +319,12 @@ func setHosts(workspaceName string, o *initOptions) error {
 }
 
 // After displaying the information, save it to metadata.yaml
-func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool) error {
+func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId int) error {
 	metadata := MetadataInit{
 		Domain:       domain,
 		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
 		GitopsSecret: token,
+		WorkspaceId:  workspaceId,
 	}
 
 	// Add editor URL if IDE is enabled
@@ -682,6 +683,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	var mqttEnvVars []string
+	workspaceId := 0
 	fmt.Println("Registering workspace...")
 	// Check if automation_server.yaml exists
 	automationServerConfig := filepath.Join(bitswanConfig, "aoc", "automation_server.yaml")
@@ -745,6 +747,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("Workspace registered successfully!")
 
+		// TODO for debug only
 		fmt.Println("------------WORKSPACE INFO------------")
 		fmt.Printf("Workspace ID: %d\n", workspacePostResponse.Id)
 		fmt.Printf("Workspace Name: %s\n", workspacePostResponse.Name)
@@ -753,6 +756,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Created At: %s\n", workspacePostResponse.CreatedAt)
 		fmt.Printf("Updated At: %s\n", workspacePostResponse.UpdatedAt)
 		fmt.Println("----------------------------------")
+
+		workspaceId = workspacePostResponse.Id
 
 		fmt.Println("Getting EMQX JWT for workspace...")
 		resp, err = sendRequest("GET", fmt.Sprintf("http://localhost:8000/api/workspaces/%d/emqx/jwt", workspacePostResponse.Id), nil, automationConfig.AccessToken)
@@ -779,6 +784,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("EMQX JWT received successfully!")
 
+		// TODO for debug only
 		fmt.Println("------------EMQX JWT INFO------------")
 		fmt.Printf("EMQX URL: %s\n", emqxGetResponse.Url)
 		fmt.Printf("EMQX JWT: %s\n", emqxGetResponse.Token)
@@ -820,7 +826,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Println("GitOps deployment set up successfully!")
 
 	// Save metadata to file
-	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde); err != nil {
+	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde, workspaceId); err != nil {
 		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
 	}
 
