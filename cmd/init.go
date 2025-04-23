@@ -732,15 +732,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to unmarshal automation_server.yaml: %w", err)
 		}
 
-		// TODO parse automation
-		// resp, err := sendRequest("POST", "http://localhost:8000/api/automation-servers/token", nil)
-
-		// if err != nil {
-		// 	return fmt.Errorf("error sending request: %w", err)
-		// }
-		// defer resp.Body.Close()
-		// TODO: Check the response
-
 		payload := map[string]interface{}{
 			"name":                 workspaceName,
 			"automation_server_id": automationConfig.AutomationServerId,
@@ -780,16 +771,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("Workspace registered successfully!")
 
-		// TODO for debug only
-		fmt.Println("------------WORKSPACE INFO------------")
-		fmt.Printf("Workspace ID: %d\n", workspacePostResponse.Id)
-		fmt.Printf("Workspace Name: %s\n", workspacePostResponse.Name)
-		fmt.Printf("Keycloak Org ID: %s\n", workspacePostResponse.KeycloakOrgId)
-		fmt.Printf("Automation Server ID: %s\n", workspacePostResponse.AutomationServerId)
-		fmt.Printf("Created At: %s\n", workspacePostResponse.CreatedAt)
-		fmt.Printf("Updated At: %s\n", workspacePostResponse.UpdatedAt)
-		fmt.Println("----------------------------------")
-
 		workspaceId = workspacePostResponse.Id
 
 		fmt.Println("Getting EMQX JWT for workspace...")
@@ -816,12 +797,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Println("EMQX JWT received successfully!")
-
-		// TODO for debug only
-		fmt.Println("------------EMQX JWT INFO------------")
-		fmt.Printf("EMQX URL: %s\n", emqxGetResponse.Url)
-		fmt.Printf("EMQX JWT: %s\n", emqxGetResponse.Token)
-		fmt.Println("----------------------------------")
 
 		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(workspacePostResponse.Id))
 		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+emqxGetResponse.Token)
