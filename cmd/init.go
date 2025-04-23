@@ -681,36 +681,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		panic(fmt.Errorf("Failed to download examples: %w", err))
 	}
 
-	compose, token, err := dockercompose.CreateDockerComposeFile(
-
-		gitopsConfig,
-		workspaceName,
-		gitopsImage,
-		bitswanEditorImage,
-		o.domain,
-		o.noIde,
-	)
-	if err != nil {
-		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
-	}
-
-	dockerComposePath := gitopsDeployment + "/docker-compose.yml"
-	if err := os.WriteFile(dockerComposePath, []byte(compose), 0755); err != nil {
-		panic(fmt.Errorf("Failed to write docker-compose file: %w", err))
-	}
-
-	err = os.Chdir(gitopsDeployment)
-	if err != nil {
-		panic(fmt.Errorf("Failed to change directory to GitOps deployment: %w", err))
-	}
-
-	fmt.Println("GitOps deployment set up successfully!")
-
-	// Save metadata to file
-	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde); err != nil {
-		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
-	}
-
+	var mqttEnvVars []string
 	fmt.Println("Registering workspace...")
 	// Check if automation_server.yaml exists
 	automationServerConfig := filepath.Join(bitswanConfig, "aoc", "automation_server.yaml")
@@ -745,8 +716,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-
-		fmt.Println(string(jsonBytes))
 
 		resp, err := sendRequest("POST", "http://localhost:8000/api/workspaces/", jsonBytes, automationConfig.AccessToken)
 		if err != nil {
@@ -785,35 +754,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Updated At: %s\n", workspacePostResponse.UpdatedAt)
 		fmt.Println("----------------------------------")
 
-		fmt.Println("Updating automation_server.yaml with workspace ID...")
-		// SAVE TO metadata.yaml
-		// Read metadata.yaml
-		metadataPath := gitopsConfig + "/metadata.yaml"
-		data, err := os.ReadFile(metadataPath)
-		if err != nil {
-			panic(err)
-		}
-
-		var metadata MetadataInit
-		err = yaml.Unmarshal(data, &metadata)
-		if err != nil {
-			panic(err)
-		}
-
-		metadata.WorkspaceId = workspacePostResponse.Id
-
-		yamlData, err := yaml.Marshal(metadata)
-		if err != nil {
-			return fmt.Errorf("failed to marshal automation server yaml: %w", err)
-		}
-
-		// Write back to file
-		if err := ioutil.WriteFile("metadata.yml", yamlData, 0644); err != nil {
-			return fmt.Errorf("failed to write to metadata yaml file: %w", err)
-		}
-
-		fmt.Println("Automation server workspace ID updated in metadata.yaml")
-
 		fmt.Println("Getting EMQX JWT for workspace...")
 		resp, err = sendRequest("GET", fmt.Sprintf("http://localhost:8000/api/workspaces/%d/emqx/jwt", workspacePostResponse.Id), nil, automationConfig.AccessToken)
 		if err != nil {
@@ -844,64 +784,44 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Printf("EMQX JWT: %s\n", emqxGetResponse.Token)
 		fmt.Println("----------------------------------")
 
-		dockerComposeData, err := os.ReadFile(dockerComposePath)
-		if err != nil {
-			panic(err)
-		}
-
-		var rootNode yaml.Node
-		if err := yaml.Unmarshal(dockerComposeData, &rootNode); err != nil {
-			panic(err)
-		}
-
-		envNode, err := findServiceEnvironment(&rootNode, "bitswan-gitops")
-		if err != nil {
-			panic(err)
-		}
-
-		mqttEnvVars := []string{
-			"MQTT_USERNAME=" + fmt.Sprint(workspacePostResponse.Id),
-			"MQTT_PASSWORD=" + emqxGetResponse.Token,
-			"MQTT_BROKER=" + strings.Split(emqxGetResponse.Url, ":")[0],
-			"MQTT_PORT=1883",
-			"MQTT_TOPIC=/topology",
-		}
-
-		fmt.Println("Updating docker-compose.yml with EMQX JWT...")
-
-		if envNode.Kind == yaml.SequenceNode {
-			// Handle list format (- VAR=value)
-			for _, v := range mqttEnvVars {
-				envNode.Content = append(envNode.Content, &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Tag:   "!!str",
-					Value: v,
-				})
-			}
-		} else if envNode.Kind == yaml.MappingNode {
-			// Handle map format (VAR: value)
-			for _, v := range mqttEnvVars {
-				key, value, _ := parseEnvVar(v)
-				envNode.Content = append(envNode.Content,
-					&yaml.Node{Kind: yaml.ScalarNode, Value: key},
-					&yaml.Node{Kind: yaml.ScalarNode, Value: value},
-				)
-			}
-		}
-
-		// 5. Write back to file
-		updatedData, err := yaml.Marshal(&rootNode)
-		if err != nil {
-			panic(err)
-		}
-
-		if err := os.WriteFile(dockerComposePath, updatedData, 0644); err != nil {
-			panic(err)
-		}
-
-		fmt.Println("Successfully updated docker-compose.yml")
+		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(workspacePostResponse.Id))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+emqxGetResponse.Token)
+		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+strings.Split(emqxGetResponse.Url, ":")[0])
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT=1883")
+		mqttEnvVars = append(mqttEnvVars, "MQTT_TOPIC=/topology")
 	} else {
 		fmt.Println("Automation server config not found, skipping workspace registration.")
+	}
+
+	compose, token, err := dockercompose.CreateDockerComposeFile(
+		gitopsConfig,
+		workspaceName,
+		gitopsImage,
+		bitswanEditorImage,
+		o.domain,
+		o.noIde,
+		mqttEnvVars,
+	)
+
+	if err != nil {
+		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
+	}
+
+	dockerComposePath := gitopsDeployment + "/docker-compose.yml"
+	if err := os.WriteFile(dockerComposePath, []byte(compose), 0755); err != nil {
+		panic(fmt.Errorf("Failed to write docker-compose file: %w", err))
+	}
+
+	err = os.Chdir(gitopsDeployment)
+	if err != nil {
+		panic(fmt.Errorf("Failed to change directory to GitOps deployment: %w", err))
+	}
+
+	fmt.Println("GitOps deployment set up successfully!")
+
+	// Save metadata to file
+	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde); err != nil {
+		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
 	}
 
 	projectName := workspaceName + "-site"
@@ -935,43 +855,4 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("GitOps Secret: %s\n", token)
 
 	return nil
-}
-func findServiceEnvironment(root *yaml.Node, serviceName string) (*yaml.Node, error) {
-	// Navigate to the root mapping (key-value pairs)
-	if root.Kind != yaml.DocumentNode || len(root.Content) == 0 {
-		return nil, fmt.Errorf("invalid YAML structure")
-	}
-	rootMap := root.Content[0]
-
-	// Iterate through root keys to find "services"
-	for i := 0; i < len(rootMap.Content); i += 2 {
-		key := rootMap.Content[i]
-		if key.Value == "services" {
-			servicesMap := rootMap.Content[i+1]
-			// Iterate through services to find "app1"
-			for j := 0; j < len(servicesMap.Content); j += 2 {
-				serviceKey := servicesMap.Content[j]
-				if serviceKey.Value == serviceName {
-					serviceNode := servicesMap.Content[j+1]
-					// Find "environment" in the service
-					for k := 0; k < len(serviceNode.Content); k += 2 {
-						envKey := serviceNode.Content[k]
-						if envKey.Value == "environment" {
-							return serviceNode.Content[k+1], nil
-						}
-					}
-				}
-			}
-		}
-	}
-	return nil, fmt.Errorf("service or environment not found")
-}
-
-func parseEnvVar(env string) (key, value string, err error) {
-	for i, c := range env {
-		if c == '=' {
-			return env[:i], env[i+1:], nil
-		}
-	}
-	return "", "", fmt.Errorf("invalid environment variable format")
 }
