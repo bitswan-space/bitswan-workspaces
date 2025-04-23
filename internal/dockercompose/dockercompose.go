@@ -23,7 +23,7 @@ const (
 	Linux
 )
 
-func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEditorImage, domain string, noIde bool) (string, string, error) {
+func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEditorImage, domain string, noIde bool, mqttEnvVars []string) (string, string, error) {
 	sshDir := os.Getenv("HOME") + "/.ssh"
 	gitConfig := os.Getenv("HOME") + "/.gitconfig"
 
@@ -60,6 +60,11 @@ func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEdit
 			"BITSWAN_GITOPS_SECRET=" + gitopsSecretToken,
 			"BITSWAN_GITOPS_DOMAIN=" + domain,
 		},
+	}
+
+	// Append AOC env variables when workspace is registered as an automation server
+	if len(mqttEnvVars) > 0 {
+		gitopsService["environment"] = append(gitopsService["environment"].([]string), mqttEnvVars...)
 	}
 
 	if hostOs == WindowsMac {
