@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -53,6 +54,11 @@ type MetadataInit struct {
 	GitopsURL    string `yaml:"gitops-url"`
 	GitopsSecret string `yaml:"gitops-secret"`
 	WorkspaceId  int    `yaml:"workspace_id"`
+	MqttUsername int    `yaml:"mqtt_username,omitempty"`
+	MqttPassword string `yaml:"mqtt_password,omitempty"`
+	MqttBroker   string `yaml:"mqtt_broker,omitempty"`
+	MqttPort     int    `yaml:"mqtt_port,omitempty"`
+	MqttTopic    string `yaml:"mqtt_topic,omitempty"`
 }
 
 func defaultInitOptions() *initOptions {
@@ -319,12 +325,30 @@ func setHosts(workspaceName string, o *initOptions) error {
 }
 
 // After displaying the information, save it to metadata.yaml
-func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId int) error {
+func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId int, mqttEnvVars []string) error {
 	metadata := MetadataInit{
 		Domain:       domain,
 		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
 		GitopsSecret: token,
 		WorkspaceId:  workspaceId,
+	}
+
+	// Add MQTT environment variables if they are provided
+	if len(mqttEnvVars) >= 5 {
+		mqttUsername, err := strconv.Atoi(mqttEnvVars[0][len("MQTT_USERNAME="):])
+		if err != nil {
+			return fmt.Errorf("failed to convert MQTT_USERNAME to int: %w", err)
+		}
+		mqttPort, err := strconv.Atoi(mqttEnvVars[3][len("MQTT_PORT="):])
+		if err != nil {
+			return fmt.Errorf("failed to convert MQTT_PORT to int: %w", err)
+		}
+
+		metadata.MqttUsername = mqttUsername
+		metadata.MqttPassword = mqttEnvVars[1][len("MQTT_PASSWORD="):]
+		metadata.MqttBroker = mqttEnvVars[2][len("MQTT_BROKER="):]
+		metadata.MqttPort = mqttPort
+		metadata.MqttTopic = mqttEnvVars[4][len("MQTT_TOPIC="):]
 	}
 
 	// Add editor URL if IDE is enabled
@@ -826,7 +850,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Println("GitOps deployment set up successfully!")
 
 	// Save metadata to file
-	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde, workspaceId); err != nil {
+	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde, workspaceId, mqttEnvVars); err != nil {
 		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
 	}
 

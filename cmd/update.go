@@ -86,20 +86,24 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 	}
 
 	// Config represents the structure of the YAML file
-	var metadata struct {
-		Domain       string `yaml:"domain"`
-		EditorURL    string `yaml:"editor-url"`
-		GitopsURL    string `yaml:"gitops-url"`
-		GitopsSecret string `yaml:"gitops-secret"`
-	}
-
+	var metadata MetadataInit
 	if err := yaml.Unmarshal(data, &metadata); err != nil {
 		return fmt.Errorf("failed to unmarshal metadata.yaml: %w", err)
 	}
 
+	var mqttEnvVars []string
+	// Check if mqtt data are in the metadata
+	if metadata.MqttPassword != "" {
+		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(metadata.MqttUsername))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+fmt.Sprint(metadata.MqttPassword))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+fmt.Sprint(metadata.MqttBroker))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT="+fmt.Sprint(metadata.MqttPort))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_TOPIC="+fmt.Sprint(metadata.MqttTopic))
+	}
+
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == ""
-	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, workspaceName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde)
+	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, workspaceName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde, mqttEnvVars)
 	if err != nil {
 		panic(fmt.Errorf("failed to create docker-compose file: %w", err))
 	}
