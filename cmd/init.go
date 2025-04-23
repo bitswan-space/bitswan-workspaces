@@ -334,21 +334,30 @@ func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool,
 	}
 
 	// Add MQTT environment variables if they are provided
-	if len(mqttEnvVars) >= 5 {
-		mqttUsername, err := strconv.Atoi(mqttEnvVars[0][len("MQTT_USERNAME="):])
-		if err != nil {
-			return fmt.Errorf("failed to convert MQTT_USERNAME to int: %w", err)
+	if len(mqttEnvVars) > 0 {
+		for _, envVar := range mqttEnvVars {
+			key, value, _ := strings.Cut(envVar, "=")
+			switch key {
+			case "MQTT_USERNAME":
+				username, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("failed to convert MQTT_USERNAME: %w", err)
+				}
+				metadata.MqttUsername = username
+			case "MQTT_PASSWORD":
+				metadata.MqttPassword = value
+			case "MQTT_BROKER":
+				metadata.MqttBroker = value
+			case "MQTT_PORT":
+				port, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("failed to convert MQTT_PORT: %w", err)
+				}
+				metadata.MqttPort = port
+			case "MQTT_TOPIC":
+				metadata.MqttTopic = value
+			}
 		}
-		mqttPort, err := strconv.Atoi(mqttEnvVars[3][len("MQTT_PORT="):])
-		if err != nil {
-			return fmt.Errorf("failed to convert MQTT_PORT to int: %w", err)
-		}
-
-		metadata.MqttUsername = mqttUsername
-		metadata.MqttPassword = mqttEnvVars[1][len("MQTT_PASSWORD="):]
-		metadata.MqttBroker = mqttEnvVars[2][len("MQTT_BROKER="):]
-		metadata.MqttPort = mqttPort
-		metadata.MqttTopic = mqttEnvVars[4][len("MQTT_TOPIC="):]
 	}
 
 	// Add editor URL if IDE is enabled
