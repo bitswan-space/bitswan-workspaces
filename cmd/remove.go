@@ -25,9 +25,9 @@ type Compose struct {
 
 // Metadata only desired field
 type Metadata struct {
-	EditorURL    string `yaml:"editor-url"`
-	GitOpsURL    string `yaml:"gitops-url"`
-	GitOpsSecret string `yaml:"gitops-secret"`
+	EditorURL    *string `yaml:"editor-url"`
+	GitOpsURL    string  `yaml:"gitops-url"`
+	GitOpsSecret string  `yaml:"gitops-secret"`
 }
 
 // ANSI color codes for terminal
@@ -263,7 +263,7 @@ func removeGitops(workspaceName string) error {
 
 	// 5. Remove caddy files
 	fmt.Println("Removing caddy files...")
-	noIde := metadata.EditorURL == ""
+	noIde := metadata.EditorURL == nil
 	err = caddyapi.DeleteCaddyRecords(workspaceName, noIde)
 	if err != nil {
 		return fmt.Errorf("error removing caddy files: %w", err)
