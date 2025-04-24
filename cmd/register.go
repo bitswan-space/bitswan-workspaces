@@ -38,7 +38,7 @@ type TokenResponse struct {
 }
 
 type AutomationServerYaml struct {
-	AocBeURL           string `yaml:"aoc_be_url"`
+	AOCUrl             string `yaml:"aoc_url"`
 	AutomationServerId string `yaml:"automation_server_id"`
 	AccessToken        string `yaml:"access_token"`
 }
@@ -162,9 +162,9 @@ func sendRequest(method, url string, payload []byte, bearerToken string) (*http.
 	return resp, nil
 }
 
-func saveAutomationServerYaml(aocBeURL string, automationServerId string, accessToken string) error {
+func saveAutomationServerYaml(aocUrl string, automationServerId string, accessToken string) error {
 	automationServerYaml := AutomationServerYaml{
-		AocBeURL:           aocBeURL,
+		AOCUrl:             aocUrl,
 		AutomationServerId: automationServerId,
 		AccessToken:        accessToken,
 	}
