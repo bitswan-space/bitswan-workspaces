@@ -52,7 +52,7 @@ func newRegisterCmd() *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := sendRequest("POST", fmt.Sprintf("http://%s:8000/api/cli/register/", aocUrl), nil, "")
+			resp, err := sendRequest("POST", fmt.Sprintf("http://%s/api/cli/register/", aocUrl), nil, "")
 			if err != nil {
 				return fmt.Errorf("error sending request: %w", err)
 			}
