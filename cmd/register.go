@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -71,19 +69,10 @@ func newRegisterCmd() *cobra.Command {
 				return fmt.Errorf("error decoding JSON: %w", err)
 			}
 
-			localHost := "localhost:8080" // Replace with your desired host (include port if needed)
-
-			updatedVerificationURIComplete, err := url.Parse(deviceAuthorizationResponse.VerificationURIComplete)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			updatedVerificationURIComplete.Host = localHost
-
-			fmt.Printf("Please visit the following URL to authorize the device:\n%s\n", updatedVerificationURIComplete.String())
+			fmt.Printf("Please visit the following URL to authorize the device:\n%s\n", deviceAuthorizationResponse.VerificationURIComplete)
 
 			for {
-				resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName), nil, "")
+				resp, err = sendRequest("GET", fmt.Sprintf("http://%s/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName), nil, "")
 				if err != nil {
 					return fmt.Errorf("error sending request: %w", err)
 				}
