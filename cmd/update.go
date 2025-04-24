@@ -93,7 +93,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 
 	var mqttEnvVars []string
 	// Check if mqtt data are in the metadata
-	if metadata.MqttPassword != "" {
+	if metadata.MqttUsername != nil {
 		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(metadata.MqttUsername))
 		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+fmt.Sprint(metadata.MqttPassword))
 		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+fmt.Sprint(metadata.MqttBroker))
@@ -102,7 +102,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 	}
 
 	// Rewrite the docker-compose file
-	noIde := metadata.EditorURL == ""
+	noIde := metadata.EditorURL == nil
 	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, workspaceName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde, mqttEnvVars)
 	if err != nil {
 		panic(fmt.Errorf("failed to create docker-compose file: %w", err))

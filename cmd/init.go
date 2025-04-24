@@ -49,16 +49,16 @@ type DockerNetwork struct {
 }
 
 type MetadataInit struct {
-	Domain       string `yaml:"domain"`
-	EditorURL    string `yaml:"editor-url,omitempty"`
-	GitopsURL    string `yaml:"gitops-url"`
-	GitopsSecret string `yaml:"gitops-secret"`
-	WorkspaceId  int    `yaml:"workspace_id,omitempty"`
-	MqttUsername int    `yaml:"mqtt_username,omitempty"`
-	MqttPassword string `yaml:"mqtt_password,omitempty"`
-	MqttBroker   string `yaml:"mqtt_broker,omitempty"`
-	MqttPort     int    `yaml:"mqtt_port,omitempty"`
-	MqttTopic    string `yaml:"mqtt_topic,omitempty"`
+	Domain       string  `yaml:"domain"`
+	EditorURL    *string `yaml:"editor-url,omitempty"`
+	GitopsURL    string  `yaml:"gitops-url"`
+	GitopsSecret string  `yaml:"gitops-secret"`
+	WorkspaceId  *int    `yaml:"workspace_id,omitempty"`
+	MqttUsername *int    `yaml:"mqtt_username,omitempty"`
+	MqttPassword *string `yaml:"mqtt_password,omitempty"`
+	MqttBroker   *string `yaml:"mqtt_broker,omitempty"`
+	MqttPort     *int    `yaml:"mqtt_port,omitempty"`
+	MqttTopic    *string `yaml:"mqtt_topic,omitempty"`
 }
 
 func defaultInitOptions() *initOptions {
@@ -325,14 +325,14 @@ func setHosts(workspaceName string, o *initOptions) error {
 }
 
 // After displaying the information, save it to metadata.yaml
-func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId int, mqttEnvVars []string) error {
+func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId *int, mqttEnvVars []string) error {
 	metadata := MetadataInit{
 		Domain:       domain,
 		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
 		GitopsSecret: token,
 	}
 
-	if workspaceId > 0 {
+	if workspaceId != nil {
 		metadata.WorkspaceId = workspaceId
 	}
 
@@ -346,26 +346,27 @@ func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool,
 				if err != nil {
 					return fmt.Errorf("failed to convert MQTT_USERNAME: %w", err)
 				}
-				metadata.MqttUsername = username
+				metadata.MqttUsername = &username
 			case "MQTT_PASSWORD":
-				metadata.MqttPassword = value
+				metadata.MqttPassword = &value
 			case "MQTT_BROKER":
-				metadata.MqttBroker = value
+				metadata.MqttBroker = &value
 			case "MQTT_PORT":
 				port, err := strconv.Atoi(value)
 				if err != nil {
 					return fmt.Errorf("failed to convert MQTT_PORT: %w", err)
 				}
-				metadata.MqttPort = port
+				metadata.MqttPort = &port
 			case "MQTT_TOPIC":
-				metadata.MqttTopic = value
+				metadata.MqttTopic = &value
 			}
 		}
 	}
 
 	// Add editor URL if IDE is enabled
 	if !noIde {
-		metadata.EditorURL = fmt.Sprintf("https://%s-editor.%s", workspaceName, domain)
+		editorURL := fmt.Sprintf("https://%s-editor.%s", workspaceName, domain)
+		metadata.EditorURL = &editorURL
 	}
 
 	// Marshal to YAML
@@ -837,7 +838,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Println("GitOps deployment set up successfully!")
 
 	// Save metadata to file
-	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde, workspaceId, mqttEnvVars); err != nil {
+	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde, &workspaceId, mqttEnvVars); err != nil {
 		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
 	}
 
