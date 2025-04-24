@@ -746,7 +746,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 
-		resp, err := sendRequest("POST", "http://localhost:8000/api/workspaces/", jsonBytes, automationConfig.AccessToken)
+		resp, err := sendRequest("POST", fmt.Sprintf("http://%s:8000/api/workspaces/", automationConfig.AOCUrl), jsonBytes, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
@@ -777,7 +777,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		workspaceId = workspacePostResponse.Id
 
 		fmt.Println("Getting EMQX JWT for workspace...")
-		resp, err = sendRequest("GET", fmt.Sprintf("http://localhost:8000/api/workspaces/%d/emqx/jwt", workspacePostResponse.Id), nil, automationConfig.AccessToken)
+		resp, err = sendRequest("GET", fmt.Sprintf("http://%s:8000/api/workspaces/%d/emqx/jwt", automationConfig.AOCUrl, workspacePostResponse.Id), nil, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
