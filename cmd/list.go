@@ -146,7 +146,7 @@ func getGitOpsSecret(workspace string, workspacesDir string) (string, error) {
 			continue
 		}
 
-		if strings.HasPrefix(envVar, "BITSWAN_DEPLOY_SECRET=") {
+		if strings.HasPrefix(envVar, "BITSWAN_GITOPS_SECRET=") {
 			parts := strings.SplitN(envVar, "=", 2)
 			if len(parts) == 2 {
 				return parts[1], nil
