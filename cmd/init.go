@@ -53,7 +53,7 @@ type MetadataInit struct {
 	EditorURL    string `yaml:"editor-url,omitempty"`
 	GitopsURL    string `yaml:"gitops-url"`
 	GitopsSecret string `yaml:"gitops-secret"`
-	WorkspaceId  int    `yaml:"workspace_id"`
+	WorkspaceId  int    `yaml:"workspace_id,omitempty"`
 	MqttUsername int    `yaml:"mqtt_username,omitempty"`
 	MqttPassword string `yaml:"mqtt_password,omitempty"`
 	MqttBroker   string `yaml:"mqtt_broker,omitempty"`
@@ -330,7 +330,10 @@ func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool,
 		Domain:       domain,
 		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
 		GitopsSecret: token,
-		WorkspaceId:  workspaceId,
+	}
+
+	if workspaceId > 0 {
+		metadata.WorkspaceId = workspaceId
 	}
 
 	// Add MQTT environment variables if they are provided
