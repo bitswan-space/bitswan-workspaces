@@ -736,6 +736,16 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to unmarshal automation_server.yaml: %w", err)
 		}
 
+		resp, err := sendRequest("GET", fmt.Sprintf("http://%s/api/automation-servers/token", automationConfig.AOCUrl), nil, automationConfig.AccessToken)
+		if err != nil {
+			return fmt.Errorf("error sending request: %w", err)
+		}
+
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to get automation server token: %s", resp.Status)
+		}
+
 		payload := map[string]interface{}{
 			"name":                 workspaceName,
 			"automation_server_id": automationConfig.AutomationServerId,
@@ -747,7 +757,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 
-		resp, err := sendRequest("POST", fmt.Sprintf("http://%s/api/workspaces/", automationConfig.AOCUrl), jsonBytes, automationConfig.AccessToken)
+		resp, err = sendRequest("POST", fmt.Sprintf("http://%s/api/workspaces/", automationConfig.AOCUrl), jsonBytes, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
