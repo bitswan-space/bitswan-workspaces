@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -143,12 +142,7 @@ func deleteHostsEntry(workspaceName string) {
 
 func removeGitops(workspaceName string) error {
 	bitswanPath := os.Getenv("HOME") + "/.config/bitswan/"
-	gitopsPath := bitswanPath + "workspaces/" + workspaceName
-
-	// 1. Ask user for confirmation
-	var confirm string
-
-	fmt.Println("Automations in this gitops will be removed and cannot be recovered.")
+	gitopsPath := filepath.Join(bitswanPath, "workspaces", workspaceName)
 
 	metadataPath := gitopsPath + "/metadata.yaml"
 	data, err := os.ReadFile(metadataPath)
@@ -162,25 +156,12 @@ func removeGitops(workspaceName string) error {
 		panic(err)
 	}
 
-	// Create a new GET request
-	req, err := http.NewRequest("GET", metadata.GitOpsURL+"/automations/", nil)
-	if err != nil {
-		fmt.Println("Error creating request:", err)
-	}
+	// 1. Ask user for confirmation
+	var confirm string
 
-	// Add headers
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+metadata.GitOpsSecret)
+	fmt.Println("Automations in this gitops will be removed and cannot be recovered.")
 
-	// Create HTTP client and send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-	}
-	defer resp.Body.Close()
-
-	// Parse the response
+	// 2. Get the list of automations
 	automations, err := automation.GetListAutomations(workspaceName)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -193,7 +174,7 @@ func removeGitops(workspaceName string) error {
 		return nil
 	}
 
-	// 2. Remove the automations from the server
+	// 3. Remove the automations from the server
 	fmt.Println("Removing automations...")
 	for _, a := range automations {
 		err := automation.RemoveAutomation(workspaceName, a.DeploymentID)
@@ -203,7 +184,7 @@ func removeGitops(workspaceName string) error {
 	}
 	fmt.Println("Automations removed successfully.")
 
-	// 2. Remove docker container and volume
+	// 4. Remove docker container and volume
 	fmt.Println("Removing docker containers and volumes...")
 	workspacesFolder := filepath.Join(bitswanPath, "workspaces")
 	dockerComposePath := filepath.Join(workspacesFolder, workspaceName, "deployment")
@@ -217,7 +198,7 @@ func removeGitops(workspaceName string) error {
 	}
 	fmt.Println("Docker containers and volumes removed successfully.")
 
-	// 3. Remove images used by docker-compose
+	// 5. Remove images used by docker-compose
 	fmt.Println("Removing images used by docker-compose...")
 	dockerComposeFilePath := filepath.Join(dockerComposePath, "docker-compose.yml")
 	data, err = os.ReadFile(dockerComposeFilePath)
@@ -250,7 +231,7 @@ func removeGitops(workspaceName string) error {
 		}
 	}
 
-	// 4. Remove the gitops folder
+	// 6. Remove the gitops folder
 	fmt.Println("Removing gitops folder...")
 	cmd = exec.Command("rm", "-r", workspaceName)
 	cmd.Dir = workspacesFolder
@@ -261,7 +242,7 @@ func removeGitops(workspaceName string) error {
 	}
 	fmt.Println("GitOps folder removed successfully.")
 
-	// 5. Remove caddy files
+	// 7. Remove caddy files
 	fmt.Println("Removing caddy files...")
 	noIde := metadata.EditorURL == nil
 	err = caddyapi.DeleteCaddyRecords(workspaceName, noIde)
@@ -270,7 +251,7 @@ func removeGitops(workspaceName string) error {
 	}
 	fmt.Println("Caddy files removed successfully.")
 
-	// 6. Remove entries from /etc/hosts
+	// 8. Remove entries from /etc/hosts
 	fmt.Println("Removing entries from /etc/hosts...")
 	deleteHostsEntry(workspaceName)
 	fmt.Println("Entries removed from /etc/hosts successfully.")
