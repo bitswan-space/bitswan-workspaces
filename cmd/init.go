@@ -719,6 +719,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		panic(fmt.Errorf("Failed to download examples: %w", err))
 	}
 
+	var aocEnvVars []string
 	var mqttEnvVars []string
 	workspaceId := 0
 	fmt.Println("Registering workspace...")
@@ -736,6 +737,8 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to unmarshal automation_server.yaml: %w", err)
 		}
 
+		fmt.Println("Getting automation server token...")
+
 		resp, err := sendRequest("GET", fmt.Sprintf("http://%s/api/automation-servers/token", automationConfig.AOCUrl), nil, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
@@ -745,6 +748,18 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("failed to get automation server token: %s", resp.Status)
 		}
+
+		type AutomationServerTokenResponse struct {
+			Token string `json:"token"`
+		}
+
+		var automationServerTokenResponse AutomationServerTokenResponse
+		body, _ := ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal([]byte(body), &automationServerTokenResponse)
+		if err != nil {
+			return fmt.Errorf("error decoding JSON: %w", err)
+		}
+		fmt.Println("Automation server token received successfully!")
 
 		payload := map[string]interface{}{
 			"name":                 workspaceName,
@@ -777,7 +792,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		var workspacePostResponse WorkspacePostResponse
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ = ioutil.ReadAll(resp.Body)
 		err = json.Unmarshal([]byte(body), &workspacePostResponse)
 		if err != nil {
 			return fmt.Errorf("error decoding JSON: %w", err)
@@ -786,6 +801,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Println("Workspace registered successfully!")
 
 		workspaceId = workspacePostResponse.Id
+
+		aocEnvVars = append(aocEnvVars, "BITSWAN_WORKSPACE_ID="+fmt.Sprint(workspacePostResponse.Id))
+		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_URL="+automationConfig.AOCUrl)
+		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_TOKEN="+automationServerTokenResponse.Token)
 
 		fmt.Println("Getting EMQX JWT for workspace...")
 		resp, err = sendRequest("GET", fmt.Sprintf("http://%s/api/workspaces/%d/emqx/jwt", automationConfig.AOCUrl, workspacePostResponse.Id), nil, automationConfig.AccessToken)
@@ -829,6 +848,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		o.domain,
 		o.noIde,
 		mqttEnvVars,
+		aocEnvVars,
 	)
 
 	if err != nil {
