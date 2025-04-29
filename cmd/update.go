@@ -97,15 +97,14 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 	var mqttEnvVars []string
 	// Check if mqtt data are in the metadata
 	if metadata.MqttUsername != nil {
-		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(metadata.MqttUsername))
-		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+fmt.Sprint(metadata.MqttPassword))
-		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+fmt.Sprint(metadata.MqttBroker))
-		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT="+fmt.Sprint(metadata.MqttPort))
-		mqttEnvVars = append(mqttEnvVars, "MQTT_TOPIC="+fmt.Sprint(metadata.MqttTopic))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(*metadata.MqttUsername))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+fmt.Sprint(*metadata.MqttPassword))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+fmt.Sprint(*metadata.MqttBroker))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT="+fmt.Sprint(*metadata.MqttPort))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_TOPIC="+fmt.Sprint(*metadata.MqttTopic))
 	}
 
-	bitswanConfig := os.Getenv("HOME") + "/.config/bitswan/"
-	automationServerConfig := filepath.Join(bitswanConfig, "aoc", "automation_server.yaml")
+	automationServerConfig := filepath.Join(bitswanPath, "aoc", "automation_server.yaml")
 	var aocEnvVars []string
 	if _, err := os.Stat(automationServerConfig); !os.IsNotExist(err) {
 		// Read automation_server.yaml
