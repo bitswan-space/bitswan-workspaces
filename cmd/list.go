@@ -129,7 +129,7 @@ func getGitOpsSecret(workspace string, workspacesDir string) (string, error) {
 		return "", fmt.Errorf("services section not found")
 	}
 
-	editorService, ok := services["bitswan-editor-"+workspace].(map[string]interface{})
+	editorService, ok := services["bitswan-gitops"].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("editor service not found")
 	}
@@ -139,14 +139,14 @@ func getGitOpsSecret(workspace string, workspacesDir string) (string, error) {
 		return "", fmt.Errorf("environment section not found")
 	}
 
-	// Look for the BITSWAN_DEPLOY_SECRET in the environment variables
+	// Look for the BITSWAN_GITOPS_SECRET in the environment variables
 	for _, item := range env {
 		envVar, ok := item.(string)
 		if !ok {
 			continue
 		}
 
-		if strings.HasPrefix(envVar, "BITSWAN_DEPLOY_SECRET=") {
+		if strings.HasPrefix(envVar, "BITSWAN_GITOPS_SECRET=") {
 			parts := strings.SplitN(envVar, "=", 2)
 			if len(parts) == 2 {
 				return parts[1], nil

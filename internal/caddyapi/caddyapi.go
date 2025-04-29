@@ -191,12 +191,15 @@ func InitCaddy() error {
 	return nil
 }
 
-func DeleteCaddyRecords(gitopsName string) error {
+func DeleteCaddyRecords(gitopsName string, noIde bool) error {
 	urls := []string{
 		fmt.Sprintf("http://localhost:2019/id/%s_gitops", gitopsName),
-		fmt.Sprintf("http://localhost:2019/id/%s_editor", gitopsName),
 		fmt.Sprintf("http://localhost:2019/id/%s_tlspolicy", gitopsName),
 		fmt.Sprintf("http://localhost:2019/id/%s_tlscerts", gitopsName),
+	}
+
+	if !noIde {
+		urls = append(urls, fmt.Sprintf("http://localhost:2019/id/%s_editor", gitopsName))
 	}
 
 	for _, url := range urls {
@@ -223,7 +226,7 @@ func sendRequest(method, url string, payload []byte) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	if method == http.MethodDelete && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
+	if method == http.MethodDelete && (resp.StatusCode < 200 || resp.StatusCode >= 300) && resp.StatusCode != 404 {
 		return nil, fmt.Errorf("Caddy API returned status code %d for DELETE request", resp.StatusCode)
 	}
 

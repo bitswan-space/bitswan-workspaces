@@ -166,7 +166,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 
 	projectName := workspaceName + "-site"
 	commands := [][]string{
-		{"docker-compose", "down"},
+		{"docker", "compose", "down"},
 		{"docker", "compose", "-p", projectName, "up", "-d", "--remove-orphans"},
 	}
 
