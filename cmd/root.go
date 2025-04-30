@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bitswan-space/bitswan-workspaces/cmd/automation"
+	"github.com/bitswan-space/bitswan-workspaces/cmd/caddy"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +24,7 @@ func newRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(newVersionCmd(version)) // version subcommand
 	cmd.AddCommand(newWorkspaceCmd())      // workspace subcommand
 	cmd.AddCommand(newRegisterCmd())       // register subcommand
+	cmd.AddCommand(caddy.NewCaddyCmd())    // caddy subcommand
 
 	// Check if the configuration file exists and has an active workspace
 	configPath := filepath.Join(os.Getenv("HOME"), ".config", "bitswan", "config.toml")
