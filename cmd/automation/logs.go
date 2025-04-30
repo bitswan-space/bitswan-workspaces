@@ -63,7 +63,7 @@ func getLogsFromAutomation(workspaceName string, automationDeploymentId string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to get logs from automation, status code: %d", resp.StatusCode)
+		return fmt.Errorf("failed to get logs from automation: %s", resp.Status)
 	}
 
 	var automationLog AutomationLog
