@@ -78,11 +78,11 @@ func GetListAutomations(workspaceName string) ([]Automation, error) {
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 
-	defer resp.Body.Close()
-
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("failed to get automations: %s. Check if container is running", resp.Status)
+		return nil, fmt.Errorf("failed to get automations: %s. Check if gitops is running", resp.Status)
 	}
+
+	defer resp.Body.Close()
 
 	// Parse the response
 	var automations []Automation
