@@ -18,6 +18,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/bitswan-space/bitswan-workspaces/cmd/caddy"
 	"github.com/bitswan-space/bitswan-workspaces/internal/caddyapi"
 	"github.com/bitswan-space/bitswan-workspaces/internal/dockercompose"
 	"github.com/bitswan-space/bitswan-workspaces/internal/dockerhub"
@@ -420,7 +421,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Init shared Caddy if not exists
 	caddyConfig := bitswanConfig + "caddy"
-	caddyCertsDir := caddyConfig + "/certs"
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -441,68 +441,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !caddy_running {
-		fmt.Println("Setting up Caddy...")
-		if err := os.MkdirAll(caddyConfig, 0755); err != nil {
-			return fmt.Errorf("failed to create Caddy config directory: %w", err)
-		}
-
-		// Create Caddyfile with email and modify admin listener
-		caddyfile := `
-		{
-			email info@bitswan.space
-			admin 0.0.0.0:2019
-		}`
-
-		caddyfilePath := caddyConfig + "/Caddyfile"
-		if err := os.WriteFile(caddyfilePath, []byte(caddyfile), 0755); err != nil {
-			panic(fmt.Errorf("Failed to write Caddyfile: %w", err))
-		}
-
-		caddyDockerCompose, err := dockercompose.CreateCaddyDockerComposeFile(caddyConfig, o.domain)
+		err = caddy.InitCaddy(o.domain, o.verbose)
 		if err != nil {
-			panic(fmt.Errorf("Failed to create Caddy docker-compose file: %w", err))
+			return fmt.Errorf("failed to initialize Caddy: %w", err)
 		}
-
-		caddyDockerComposePath := caddyConfig + "/docker-compose.yml"
-		if err := os.WriteFile(caddyDockerComposePath, []byte(caddyDockerCompose), 0755); err != nil {
-			panic(fmt.Errorf("Failed to write Caddy docker-compose file: %w", err))
-		}
-
-		err = os.Chdir(caddyConfig)
-		if err != nil {
-			panic(fmt.Errorf("Failed to change directory to Caddy config: %w", err))
-		}
-
-		caddyProjectName := "bitswan-caddy"
-		caddyDockerComposeCom := exec.Command("docker", "compose", "-p", caddyProjectName, "up", "-d")
-
-		// Capture both stdout and stderr
-		var stdout, stderr bytes.Buffer
-		caddyDockerComposeCom.Stdout = &stdout
-		caddyDockerComposeCom.Stderr = &stderr
-
-		// Create certs directory if it doesn't exist
-		if _, err := os.Stat(caddyCertsDir); os.IsNotExist(err) {
-			if err := os.MkdirAll(caddyCertsDir, 0740); err != nil {
-				return fmt.Errorf("failed to create Caddy certs directory: %w", err)
-			}
-		}
-
-		fmt.Println("Starting Caddy...")
-		if err := runCommandVerbose(caddyDockerComposeCom, o.verbose); err != nil {
-			// Combine stdout and stderr for complete output
-			fullOutput := stdout.String() + stderr.String()
-			return fmt.Errorf("Failed to start Caddy:\nError: %v\nOutput:\n%s", err, fullOutput)
-		}
-
-		// wait 5s to make sure Caddy is up
-		time.Sleep(5 * time.Second)
-		err = caddyapi.InitCaddy()
-		if err != nil {
-			panic(fmt.Errorf("Failed to init Caddy: %w", err))
-		}
-
-		fmt.Println("Caddy started successfully!")
 	} else {
 		fmt.Println("A running instance of Caddy with admin found")
 	}
