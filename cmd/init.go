@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
-	"io"
-	"sync"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -46,6 +48,19 @@ type DockerNetwork struct {
 	Scope     string `json:"Scope"`
 }
 
+type MetadataInit struct {
+	Domain       string  `yaml:"domain"`
+	EditorURL    *string `yaml:"editor-url,omitempty"`
+	GitopsURL    string  `yaml:"gitops-url"`
+	GitopsSecret string  `yaml:"gitops-secret"`
+	WorkspaceId  *int    `yaml:"workspace_id,omitempty"`
+	MqttUsername *int    `yaml:"mqtt_username,omitempty"`
+	MqttPassword *string `yaml:"mqtt_password,omitempty"`
+	MqttBroker   *string `yaml:"mqtt_broker,omitempty"`
+	MqttPort     *int    `yaml:"mqtt_port,omitempty"`
+	MqttTopic    *string `yaml:"mqtt_topic,omitempty"`
+}
+
 func defaultInitOptions() *initOptions {
 	return &initOptions{}
 }
@@ -74,7 +89,6 @@ func newInitCmd() *cobra.Command {
 	return cmd
 }
 
-
 func checkNetworkExists(networkName string) (bool, error) {
 	// Run docker network ls command with JSON format
 	cmd := exec.Command("docker", "network", "ls", "--format=json")
@@ -102,73 +116,72 @@ func checkNetworkExists(networkName string) (bool, error) {
 }
 
 func runCommandVerbose(cmd *exec.Cmd, verbose bool) error {
-    var stdoutBuf, stderrBuf bytes.Buffer
+	var stdoutBuf, stderrBuf bytes.Buffer
 
-    if verbose {
-        // Set up pipes for real-time streaming
-        stdoutPipe, err := cmd.StdoutPipe()
-        if err != nil {
-            return fmt.Errorf("failed to create stdout pipe: %w", err)
-        }
+	if verbose {
+		// Set up pipes for real-time streaming
+		stdoutPipe, err := cmd.StdoutPipe()
+		if err != nil {
+			return fmt.Errorf("failed to create stdout pipe: %w", err)
+		}
 
-        stderrPipe, err := cmd.StderrPipe()
-        if err != nil {
-            return fmt.Errorf("failed to create stderr pipe: %w", err)
-        }
+		stderrPipe, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Errorf("failed to create stderr pipe: %w", err)
+		}
 
-        // Create multi-writers to both stream and capture output
-        stdoutWriter := io.MultiWriter(os.Stdout, &stdoutBuf)
-        stderrWriter := io.MultiWriter(os.Stderr, &stderrBuf)
+		// Create multi-writers to both stream and capture output
+		stdoutWriter := io.MultiWriter(os.Stdout, &stdoutBuf)
+		stderrWriter := io.MultiWriter(os.Stderr, &stderrBuf)
 
-        // Start the command
-        if err := cmd.Start(); err != nil {
-            return fmt.Errorf("failed to start command: %w", err)
-        }
+		// Start the command
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("failed to start command: %w", err)
+		}
 
-        // Copy stdout and stderr in separate goroutines
-        var wg sync.WaitGroup
-        wg.Add(2)
+		// Copy stdout and stderr in separate goroutines
+		var wg sync.WaitGroup
+		wg.Add(2)
 
-        go func() {
-            defer wg.Done()
-            io.Copy(stdoutWriter, stdoutPipe)
-        }()
+		go func() {
+			defer wg.Done()
+			io.Copy(stdoutWriter, stdoutPipe)
+		}()
 
-        go func() {
-            defer wg.Done()
-            io.Copy(stderrWriter, stderrPipe)
-        }()
+		go func() {
+			defer wg.Done()
+			io.Copy(stderrWriter, stderrPipe)
+		}()
 
-        // Wait for all output to be processed
-        wg.Wait()
+		// Wait for all output to be processed
+		wg.Wait()
 
-        // Wait for command to complete
-        err = cmd.Wait()
-        return err
-    } else {
-        // Not verbose, just capture output for potential error reporting
-        cmd.Stdout = &stdoutBuf
-        cmd.Stderr = &stderrBuf
+		// Wait for command to complete
+		err = cmd.Wait()
+		return err
+	} else {
+		// Not verbose, just capture output for potential error reporting
+		cmd.Stdout = &stdoutBuf
+		cmd.Stderr = &stderrBuf
 
-        err := cmd.Run()
+		err := cmd.Run()
 
-        // If command failed, print the captured output
-        if err != nil {
-            if stdoutBuf.Len() > 0 {
-                fmt.Println("Command stdout:")
-                fmt.Println(stdoutBuf.String())
-            }
+		// If command failed, print the captured output
+		if err != nil {
+			if stdoutBuf.Len() > 0 {
+				fmt.Println("Command stdout:")
+				fmt.Println(stdoutBuf.String())
+			}
 
-            if stderrBuf.Len() > 0 {
-                fmt.Println("Command stderr:")
-                fmt.Println(stderrBuf.String())
-            }
-        }
+			if stderrBuf.Len() > 0 {
+				fmt.Println("Command stderr:")
+				fmt.Println(stderrBuf.String())
+			}
+		}
 
-        return err
-    }
+		return err
+	}
 }
-
 
 // EnsureExamples clones the BitSwan repository if it doesn't exist,
 // or updates it if it already exists
@@ -312,24 +325,48 @@ func setHosts(workspaceName string, o *initOptions) error {
 }
 
 // After displaying the information, save it to metadata.yaml
-func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool) error {
-	// Create metadata structure
-	type Metadata struct {
-		Domain       string `yaml:"domain"`
-		EditorURL    string `yaml:"editor-url,omitempty"`
-		GitopsURL    string `yaml:"gitops-url"`
-		GitopsSecret string `yaml:"gitops-secret"`
-	}
-
-	metadata := Metadata{
+func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId *int, mqttEnvVars []string) error {
+	metadata := MetadataInit{
 		Domain:       domain,
 		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
 		GitopsSecret: token,
 	}
 
+	if workspaceId != nil {
+		metadata.WorkspaceId = workspaceId
+	}
+
+	// Add MQTT environment variables if they are provided
+	if len(mqttEnvVars) > 0 {
+		for _, envVar := range mqttEnvVars {
+			key, value, _ := strings.Cut(envVar, "=")
+			switch key {
+			case "MQTT_USERNAME":
+				username, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("failed to convert MQTT_USERNAME: %w", err)
+				}
+				metadata.MqttUsername = &username
+			case "MQTT_PASSWORD":
+				metadata.MqttPassword = &value
+			case "MQTT_BROKER":
+				metadata.MqttBroker = &value
+			case "MQTT_PORT":
+				port, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("failed to convert MQTT_PORT: %w", err)
+				}
+				metadata.MqttPort = &port
+			case "MQTT_TOPIC":
+				metadata.MqttTopic = &value
+			}
+		}
+	}
+
 	// Add editor URL if IDE is enabled
 	if !noIde {
-		metadata.EditorURL = fmt.Sprintf("https://%s-editor.%s", workspaceName, domain)
+		editorURL := fmt.Sprintf("https://%s-editor.%s", workspaceName, domain)
+		metadata.EditorURL = &editorURL
 	}
 
 	// Marshal to YAML
@@ -682,15 +719,138 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		panic(fmt.Errorf("Failed to download examples: %w", err))
 	}
 
-	compose, token, err := dockercompose.CreateDockerComposeFile(
+	var aocEnvVars []string
+	var mqttEnvVars []string
+	workspaceId := 0
+	fmt.Println("Registering workspace...")
+	// Check if automation_server.yaml exists
+	automationServerConfig := filepath.Join(bitswanConfig, "aoc", "automation_server.yaml")
+	if _, err := os.Stat(automationServerConfig); !os.IsNotExist(err) {
+		// Read automation_server.yaml
+		yamlFile, err := os.ReadFile(automationServerConfig)
+		if err != nil {
+			return fmt.Errorf("failed to read automation_server.yaml: %w", err)
+		}
 
+		var automationConfig AutomationServerYaml
+		if err := yaml.Unmarshal(yamlFile, &automationConfig); err != nil {
+			return fmt.Errorf("failed to unmarshal automation_server.yaml: %w", err)
+		}
+
+		fmt.Println("Getting automation server token...")
+
+		resp, err := sendRequest("GET", fmt.Sprintf("http://%s/api/automation-servers/token", automationConfig.AOCUrl), nil, automationConfig.AccessToken)
+		if err != nil {
+			return fmt.Errorf("error sending request: %w", err)
+		}
+
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to get automation server token: %s", resp.Status)
+		}
+
+		type AutomationServerTokenResponse struct {
+			Token string `json:"token"`
+		}
+
+		var automationServerTokenResponse AutomationServerTokenResponse
+		body, _ := ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal([]byte(body), &automationServerTokenResponse)
+		if err != nil {
+			return fmt.Errorf("error decoding JSON: %w", err)
+		}
+		fmt.Println("Automation server token received successfully!")
+
+		payload := map[string]interface{}{
+			"name":                 workspaceName,
+			"automation_server_id": automationConfig.AutomationServerId,
+			"keycloak_org_id":      "00000000-0000-0000-0000-000000000000",
+		}
+
+		jsonBytes, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		resp, err = sendRequest("POST", fmt.Sprintf("http://%s/api/workspaces/", automationConfig.AOCUrl), jsonBytes, automationConfig.AccessToken)
+		if err != nil {
+			return fmt.Errorf("error sending request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			return fmt.Errorf("failed to register workspace: %s", resp.Status)
+		}
+
+		type WorkspacePostResponse struct {
+			Id                 int    `json:"id"`
+			Name               string `json:"name"`
+			KeycloakOrgId      string `json:"keycloak_org_id"`
+			AutomationServerId string `json:"automation_server_id"`
+			CreatedAt          string `json:"created_at"`
+			UpdatedAt          string `json:"updated_at"`
+		}
+
+		var workspacePostResponse WorkspacePostResponse
+		body, _ = ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal([]byte(body), &workspacePostResponse)
+		if err != nil {
+			return fmt.Errorf("error decoding JSON: %w", err)
+		}
+
+		fmt.Println("Workspace registered successfully!")
+
+		workspaceId = workspacePostResponse.Id
+
+		aocEnvVars = append(aocEnvVars, "BITSWAN_WORKSPACE_ID="+fmt.Sprint(workspacePostResponse.Id))
+		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_URL="+automationConfig.AOCUrl)
+		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_TOKEN="+automationServerTokenResponse.Token)
+
+		fmt.Println("Getting EMQX JWT for workspace...")
+		resp, err = sendRequest("GET", fmt.Sprintf("http://%s/api/workspaces/%d/emqx/jwt", automationConfig.AOCUrl, workspacePostResponse.Id), nil, automationConfig.AccessToken)
+		if err != nil {
+			return fmt.Errorf("error sending request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to get EMQX JWT: %s", resp.Status)
+		}
+
+		type EmqxGetResponse struct {
+			Url   string `json:"url"`
+			Token string `json:"token"`
+		}
+
+		var emqxGetResponse EmqxGetResponse
+		body, _ = ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal([]byte(body), &emqxGetResponse)
+		if err != nil {
+			return fmt.Errorf("error decoding JSON: %w", err)
+		}
+
+		fmt.Println("EMQX JWT received successfully!")
+
+		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(workspacePostResponse.Id))
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+emqxGetResponse.Token)
+		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+strings.Split(emqxGetResponse.Url, ":")[0])
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT=1883")
+		mqttEnvVars = append(mqttEnvVars, "MQTT_TOPIC=/topology")
+	} else {
+		fmt.Println("Automation server config not found, skipping workspace registration.")
+	}
+
+	compose, token, err := dockercompose.CreateDockerComposeFile(
 		gitopsConfig,
 		workspaceName,
 		gitopsImage,
 		bitswanEditorImage,
 		o.domain,
 		o.noIde,
+		mqttEnvVars,
+		aocEnvVars,
 	)
+
 	if err != nil {
 		panic(fmt.Errorf("Failed to create docker-compose file: %w", err))
 	}
@@ -707,6 +867,11 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("GitOps deployment set up successfully!")
 
+	// Save metadata to file
+	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde, &workspaceId, mqttEnvVars); err != nil {
+		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
+	}
+
 	projectName := workspaceName + "-site"
 	dockerComposeCom := exec.Command("docker", "compose", "-p", projectName, "up", "-d")
 
@@ -716,11 +881,6 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("BitSwan GitOps initialized successfully!")
-
-	// Save metadata to file
-	if err := saveMetadata(gitopsConfig, workspaceName, token, o.domain, o.noIde); err != nil {
-		fmt.Printf("Warning: Failed to save metadata: %v\n", err)
-	}
 
 	// Get Bitswan Editor password from container
 	if !o.noIde {
