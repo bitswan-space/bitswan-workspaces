@@ -52,7 +52,7 @@ func newRegisterCmd() *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := sendRequest("POST", fmt.Sprintf("http://%s/api/cli/register/", aocUrl), nil, "")
+			resp, err := sendRequest("POST", fmt.Sprintf("%s/api/cli/register/", aocUrl), nil, "")
 			if err != nil {
 				return fmt.Errorf("error sending request: %w", err)
 			}
@@ -72,7 +72,7 @@ func newRegisterCmd() *cobra.Command {
 			fmt.Printf("Please visit the following URL to authorize the device:\n%s\n", deviceAuthorizationResponse.VerificationURIComplete)
 
 			for {
-				resp, err = sendRequest("GET", fmt.Sprintf("http://%s/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName), nil, "")
+				resp, err = sendRequest("GET", fmt.Sprintf("%s/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName), nil, "")
 				if err != nil {
 					return fmt.Errorf("error sending request: %w", err)
 				}

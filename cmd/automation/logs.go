@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 
-	"github.com/spf13/cobra"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
+	"github.com/spf13/cobra"
 )
 
 type AutomationLog struct {
@@ -60,6 +61,10 @@ func getLogsFromAutomation(workspaceName string, automationDeploymentId string, 
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to get logs from automation: %s", resp.Status)
+	}
 
 	var automationLog AutomationLog
 	body, _ := ioutil.ReadAll(resp.Body)

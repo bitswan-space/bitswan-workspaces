@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -161,24 +160,6 @@ func removeGitops(workspaceName string) error {
 	if err != nil {
 		panic(err)
 	}
-
-	// Create a new GET request
-	req, err := http.NewRequest("GET", metadata.GitOpsURL+"/automations/", nil)
-	if err != nil {
-		fmt.Println("Error creating request:", err)
-	}
-
-	// Add headers
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+metadata.GitOpsSecret)
-
-	// Create HTTP client and send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-	}
-	defer resp.Body.Close()
 
 	// Parse the response
 	automations, err := automation.GetListAutomations(workspaceName)

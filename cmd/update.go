@@ -121,7 +121,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 
 		fmt.Println("Getting automation server token...")
 
-		resp, err := sendRequest("GET", fmt.Sprintf("http://%s/api/automation-servers/token", automationConfig.AOCUrl), nil, automationConfig.AccessToken)
+		resp, err := sendRequest("GET", fmt.Sprintf("%s/api/automation-servers/token", automationConfig.AOCUrl), nil, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}

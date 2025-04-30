@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
+	"github.com/spf13/cobra"
 )
 
 type Automation struct {
@@ -76,6 +76,10 @@ func GetListAutomations(workspaceName string) ([]Automation, error) {
 	resp, err := SendAutomationRequest("GET", url, metadata.GitOpsSecret)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to get automations: %s. Check if gitops is running", resp.Status)
 	}
 
 	defer resp.Body.Close()
