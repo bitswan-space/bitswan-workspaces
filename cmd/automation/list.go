@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
+	"github.com/spf13/cobra"
 )
 
 type Automation struct {
@@ -79,6 +79,10 @@ func GetListAutomations(workspaceName string) ([]Automation, error) {
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to get automations: %s. Check if container is running", resp.Status)
+	}
 
 	// Parse the response
 	var automations []Automation
