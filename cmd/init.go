@@ -739,7 +739,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("Getting automation server token...")
 
-		resp, err := sendRequest("GET", fmt.Sprintf("http://%s/api/automation-servers/token", automationConfig.AOCUrl), nil, automationConfig.AccessToken)
+		resp, err := sendRequest("GET", fmt.Sprintf("%s/api/automation-servers/token", automationConfig.AOCUrl), nil, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
@@ -772,7 +772,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 
-		resp, err = sendRequest("POST", fmt.Sprintf("http://%s/api/workspaces/", automationConfig.AOCUrl), jsonBytes, automationConfig.AccessToken)
+		resp, err = sendRequest("POST", fmt.Sprintf("%s/api/workspaces/", automationConfig.AOCUrl), jsonBytes, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
@@ -807,7 +807,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_TOKEN="+automationServerTokenResponse.Token)
 
 		fmt.Println("Getting EMQX JWT for workspace...")
-		resp, err = sendRequest("GET", fmt.Sprintf("http://%s/api/workspaces/%d/emqx/jwt", automationConfig.AOCUrl, workspacePostResponse.Id), nil, automationConfig.AccessToken)
+		resp, err = sendRequest("GET", fmt.Sprintf("%s/api/workspaces/%d/emqx/jwt", automationConfig.AOCUrl, workspacePostResponse.Id), nil, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
