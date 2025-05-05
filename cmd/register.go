@@ -122,7 +122,7 @@ func newRegisterCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&serverName, "name", "", "Server name")
-	cmd.Flags().StringVar(&aocUrl, "aoc", "api.bitswan.space", "Automation operation server URL")
+	cmd.Flags().StringVar(&aocUrl, "aoc", "https://api.bitswan.space", "Automation operation server URL")
 
 	return cmd
 }
