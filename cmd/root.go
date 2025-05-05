@@ -60,6 +60,7 @@ func newWorkspaceCmd() *cobra.Command {
 	cmd.AddCommand(newUpdateCmd())
 	cmd.AddCommand(newRemoveCmd())
 	cmd.AddCommand(newSelectCmd())
+	cmd.AddCommand(newOpenCmd())
 
 	return cmd
 }
