@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/spf13/cobra"
+	"github.com/bitswan-space/bitswan-workspaces/internal/automations"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
+	"github.com/spf13/cobra"
 )
 
 func newStartCmd() *cobra.Command {
@@ -33,12 +34,12 @@ func newStartCmd() *cobra.Command {
 }
 
 func startAutomation(workspaceName, automationDeploymentId string) error {
-	metadata := getMetadata(workspaceName)
+	metadata := config.GetWorkspaceMetadata(workspaceName)
 	// Construct the URL for stopping the automation
 	url := fmt.Sprintf("%s/automations/%s/start", metadata.GitOpsURL, automationDeploymentId)
 
 	// Send the request to stop the automation
-	resp, err := SendAutomationRequest("POST", url, metadata.GitOpsSecret)
+	resp, err := automations.SendAutomationRequest("POST", url, metadata.GitOpsSecret)
 	if err != nil {
 		return fmt.Errorf("failed to send request to start automation: %w", err)
 	}

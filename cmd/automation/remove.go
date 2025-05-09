@@ -2,10 +2,10 @@ package automation
 
 import (
 	"fmt"
-	"net/http"
 
-	"github.com/spf13/cobra"
+	"github.com/bitswan-space/bitswan-workspaces/internal/automations"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
+	"github.com/spf13/cobra"
 )
 
 func newRemoveCmd() *cobra.Command {
@@ -20,33 +20,23 @@ func newRemoveCmd() *cobra.Command {
 				return fmt.Errorf("failed to get active workspace from config.toml: %v", err)
 			}
 
-			fmt.Printf("Removing an automation %s...\n", automationDeploymentId)
-			err = RemoveAutomation(workspaceName, automationDeploymentId)
+			// Create an Automation instance
+			automation := automations.Automation{
+				DeploymentID: automationDeploymentId,
+				Workspace:    workspaceName,
+			}
+
+			// Print a message indicating the removal process
+			fmt.Printf("Removing automation %s...\n", automationDeploymentId)
+
+			// Call the Remove method on the Automation instance
+			err = automation.Remove()
 			if err != nil {
-				return fmt.Errorf("failed to remove an automation: %v", err)
+				return fmt.Errorf("failed to remove automation: %v", err)
 			}
 			return nil
 		},
 	}
 
 	return cmd
-}
-
-func RemoveAutomation(workspaceName, automationDeploymentId string) error {
-	metadata := getMetadata(workspaceName)
-	// Construct the URL for stopping the automation
-	url := fmt.Sprintf("%s/automations/%s", metadata.GitOpsURL, automationDeploymentId)
-
-	// Send the request to stop the automation
-	resp, err := SendAutomationRequest("DELETE", url, metadata.GitOpsSecret)
-	if err != nil {
-		return fmt.Errorf("failed to send request to remove automation: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to remove automation, status code: %d", resp.StatusCode)
-	}
-	fmt.Printf("Automation %s removed successfully.\n", automationDeploymentId)
-	return nil
 }
