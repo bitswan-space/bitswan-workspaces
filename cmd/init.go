@@ -709,6 +709,10 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 			"keycloak_org_id":      "00000000-0000-0000-0000-000000000000",
 		}
 
+		if !o.noIde {
+			payload["editor_url"] = fmt.Sprintf("https://%s-editor.%s", workspaceName, o.domain)
+		}
+
 		jsonBytes, err := json.Marshal(payload)
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
