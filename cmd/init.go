@@ -777,10 +777,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("EMQX JWT received successfully!")
 
+		urlParts := strings.Split(emqxGetResponse.Url, ":")
+		emqxUrl, emqxPort := urlParts[0], urlParts[1]
 		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(workspacePostResponse.Id))
 		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+emqxGetResponse.Token)
-		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+strings.Split(emqxGetResponse.Url, ":")[0])
-		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT=1883")
+		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+emqxUrl)
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT="+emqxPort)
 		mqttEnvVars = append(mqttEnvVars, "MQTT_TOPIC=/topology")
 	} else {
 		fmt.Println("Automation server config not found, skipping workspace registration.")
