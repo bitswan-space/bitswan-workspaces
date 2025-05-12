@@ -143,7 +143,7 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 		}
 		fmt.Println("Automation server token received successfully!")
 
-		aocEnvVars = append(aocEnvVars, "BITSWAN_WORKSPACE_ID="+fmt.Sprintf("%d", *metadata.WorkspaceId))
+		aocEnvVars = append(aocEnvVars, "BITSWAN_WORKSPACE_ID="+*metadata.WorkspaceId)
 		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_URL="+automationConfig.AOCUrl)
 		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_TOKEN="+automationServerTokenResponse.Token)
 	}

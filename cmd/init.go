@@ -54,7 +54,7 @@ type MetadataInit struct {
 	EditorURL    *string `yaml:"editor-url,omitempty"`
 	GitopsURL    string  `yaml:"gitops-url"`
 	GitopsSecret string  `yaml:"gitops-secret"`
-	WorkspaceId  *int    `yaml:"workspace_id,omitempty"`
+	WorkspaceId  *string    `yaml:"workspace_id,omitempty"`
 	MqttUsername *int    `yaml:"mqtt_username,omitempty"`
 	MqttPassword *string `yaml:"mqtt_password,omitempty"`
 	MqttBroker   *string `yaml:"mqtt_broker,omitempty"`
@@ -326,7 +326,7 @@ func setHosts(workspaceName string, o *initOptions) error {
 }
 
 // After displaying the information, save it to metadata.yaml
-func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId *int, mqttEnvVars []string) error {
+func saveMetadata(gitopsConfig, workspaceName, token, domain string, noIde bool, workspaceId *string, mqttEnvVars []string) error {
 	metadata := MetadataInit{
 		Domain:       domain,
 		GitopsURL:    fmt.Sprintf("https://%s-gitops.%s", workspaceName, domain),
@@ -663,7 +663,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	var aocEnvVars []string
 	var mqttEnvVars []string
-	workspaceId := 0
+	workspaceId := ""
 	fmt.Println("Registering workspace...")
 	// Check if automation_server.yaml exists
 	automationServerConfig := filepath.Join(bitswanConfig, "aoc", "automation_server.yaml")
@@ -729,7 +729,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		type WorkspacePostResponse struct {
-			Id                 int    `json:"id"`
+			Id                 string    `json:"id"`
 			Name               string `json:"name"`
 			KeycloakOrgId      string `json:"keycloak_org_id"`
 			AutomationServerId string `json:"automation_server_id"`
@@ -753,7 +753,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_TOKEN="+automationServerTokenResponse.Token)
 
 		fmt.Println("Getting EMQX JWT for workspace...")
-		resp, err = sendRequest("GET", fmt.Sprintf("%s/api/workspaces/%d/emqx/jwt", automationConfig.AOCUrl, workspacePostResponse.Id), nil, automationConfig.AccessToken)
+		resp, err = sendRequest("GET", fmt.Sprintf("%s/api/workspaces/%s/emqx/jwt", automationConfig.AOCUrl, workspacePostResponse.Id), nil, automationConfig.AccessToken)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
@@ -777,10 +777,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("EMQX JWT received successfully!")
 
+		urlParts := strings.Split(emqxGetResponse.Url, ":")
+		emqxUrl, emqxPort := urlParts[0], urlParts[1]
 		mqttEnvVars = append(mqttEnvVars, "MQTT_USERNAME="+fmt.Sprint(workspacePostResponse.Id))
 		mqttEnvVars = append(mqttEnvVars, "MQTT_PASSWORD="+emqxGetResponse.Token)
-		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+strings.Split(emqxGetResponse.Url, ":")[0])
-		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT=1883")
+		mqttEnvVars = append(mqttEnvVars, "MQTT_BROKER="+emqxUrl)
+		mqttEnvVars = append(mqttEnvVars, "MQTT_PORT="+emqxPort)
 		mqttEnvVars = append(mqttEnvVars, "MQTT_TOPIC=/topology")
 	} else {
 		fmt.Println("Automation server config not found, skipping workspace registration.")
