@@ -54,7 +54,7 @@ type MetadataInit struct {
 	EditorURL    *string `yaml:"editor-url,omitempty"`
 	GitopsURL    string  `yaml:"gitops-url"`
 	GitopsSecret string  `yaml:"gitops-secret"`
-	WorkspaceId  *string    `yaml:"workspace_id,omitempty"`
+	WorkspaceId  *string `yaml:"workspace_id,omitempty"`
 	MqttUsername *int    `yaml:"mqtt_username,omitempty"`
 	MqttPassword *string `yaml:"mqtt_password,omitempty"`
 	MqttBroker   *string `yaml:"mqtt_broker,omitempty"`
@@ -83,7 +83,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&o.verbose, "verbose", "v", false, "Verbose output")
 	cmd.Flags().BoolVar(&o.mkCerts, "mkcerts", false, "Automatically generate local certificates using the mkcerts utility")
 	cmd.Flags().BoolVar(&o.setHosts, "set-hosts", false, "Automatically set hosts to /etc/hosts file")
-	cmd.Flags().BoolVar(&o.local, "local", false, "Automatically use flag --set-hosts and --mkcerts")
+	cmd.Flags().BoolVar(&o.local, "local", false, "Automatically use flag --set-hosts and --mkcerts. If no domain is set defaults to bs-<workspacename>.localhost")
 	cmd.Flags().StringVar(&o.gitopsImage, "gitops-image", "", "Custom image for the gitops")
 	cmd.Flags().StringVar(&o.editorImage, "editor-image", "", "Custom image for the editor")
 
@@ -298,11 +298,11 @@ func setHosts(workspaceName string, o *initOptions) error {
 	fmt.Println("File /etc/hosts is writable")
 
 	hostsEntries := []string{
-		"127.0.0.1 " + workspaceName + "-gitops.bitswan.local",
+		"127.0.0.1 " + workspaceName + "-gitops." + o.domain,
 	}
 
 	if !o.noIde {
-		hostsEntries = append(hostsEntries, "127.0.0.1 "+workspaceName+"-editor.bitswan.local")
+		hostsEntries = append(hostsEntries, "127.0.0.1 "+workspaceName+"-editor."+o.domain)
 	}
 
 	// Check if the entries already exist in /etc/hosts
@@ -457,6 +457,9 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	if o.local {
 		o.setHosts = true
 		o.mkCerts = true
+		if o.domain == "" {
+			o.domain = fmt.Sprintf("bs-%s.localhost", workspaceName)
+		}
 	}
 
 	inputCertsDir := o.certsDir
@@ -739,7 +742,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		}
 
 		type WorkspacePostResponse struct {
-			Id                 string    `json:"id"`
+			Id                 string `json:"id"`
 			Name               string `json:"name"`
 			KeycloakOrgId      string `json:"keycloak_org_id"`
 			AutomationServerId string `json:"automation_server_id"`
