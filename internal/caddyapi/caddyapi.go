@@ -50,49 +50,28 @@ type TLSFileLoad struct {
 	Tags        []string `json:"tags"`
 }
 
-// TODO: we should think about how to handle the case when use would like to deploy GitOps on server where Caddy is already running
-func AddCaddyRecords(workspaceName, domain string, certs, noIde bool) error {
+func RegisterServiceWithCaddy(serviceName, workspaceName, domain, upstream string) error {
 	caddyAPIRoutesBaseUrl := "http://localhost:2019/config/apps/http/servers/srv0/routes/..."
-	caddyAPITLSBaseUrl := "http://localhost:2019/config/apps/tls/certificates/load_files/..."
-	caddyAPITLSPoliciesBaseUrl := "http://localhost:2019/config/apps/http/servers/srv0/tls_connection_policies/..."
 
-	routes := []Route{}
-
-	// GitOps route
-	routes = append(routes, Route{
-		ID:    fmt.Sprintf("%s_gitops", workspaceName),
-		Match: []Match{{Host: []string{fmt.Sprintf("%s-gitops.%s", workspaceName, domain)}}},
-		Handle: []Handle{{Handler: "subroute", Routes: []Route{
+	// Create the route for the service
+	route := Route{
+		ID: fmt.Sprintf("%s_%s", workspaceName, serviceName),
+		Match: []Match{
 			{
-				Handle: []Handle{{Handler: "reverse_proxy", Upstreams: []Upstream{
-					{Dial: fmt.Sprintf("%s-gitops:8079", workspaceName)},
-				}}},
+				Host: []string{fmt.Sprintf("%s-%s.%s", workspaceName, serviceName, domain)},
 			},
-		}}},
-		Terminal: true,
-	})
-
-	// Bitswan editor route
-	if !noIde {
-		routes = append(routes, Route{
-			ID: fmt.Sprintf("%s_editor", workspaceName),
-			Match: []Match{
-				{
-					Host: []string{fmt.Sprintf("%s-editor.%s", workspaceName, domain)},
-				},
-			},
-			Handle: []Handle{
-				{
-					Handler: "subroute",
-					Routes: []Route{
-						{
-							Handle: []Handle{
-								{
-									Handler: "reverse_proxy",
-									Upstreams: []Upstream{
-										{
-											Dial: fmt.Sprintf("%s-editor:9999", workspaceName),
-										},
+		},
+		Handle: []Handle{
+			{
+				Handler: "subroute",
+				Routes: []Route{
+					{
+						Handle: []Handle{
+							{
+								Handler: "reverse_proxy",
+								Upstreams: []Upstream{
+									{
+										Dial: upstream,
 									},
 								},
 							},
@@ -100,69 +79,89 @@ func AddCaddyRecords(workspaceName, domain string, certs, noIde bool) error {
 					},
 				},
 			},
-			Terminal: true,
-		})
+		},
+		Terminal: true,
 	}
 
-	if certs {
-		tlsPolicy := []TLSPolicy{
-			{
-				ID: fmt.Sprintf("%s_tlspolicy", workspaceName),
-				Match: TLSMatch{
-					SNI: []string{
-						fmt.Sprintf("*.%s", domain),
-					},
-				},
-				CertificateSelection: TLSCertificateSelection{
-					AnyTag: []string{workspaceName},
-				},
-			},
-		}
-
-		tlsLoad := []TLSFileLoad{
-			{
-				ID:          fmt.Sprintf("%s_tlscerts", workspaceName),
-				Certificate: fmt.Sprintf("/tls/%s/full-chain.pem", domain),
-				Key:         fmt.Sprintf("/tls/%s/private-key.pem", domain),
-				Tags:        []string{workspaceName},
-			},
-		}
-
-		// send tls policy and tls to caddy api
-		jsonPayload, err := json.Marshal(tlsLoad)
-		if err != nil {
-			return fmt.Errorf("failed to marshal JSON payload: %w", err)
-		}
-
-		// Send the payload to the Caddy API
-		_, err = sendRequest("POST", caddyAPITLSBaseUrl, jsonPayload)
-		if err != nil {
-			return fmt.Errorf("Failed to add TLS to Caddy: %w", err)
-		}
-
-		jsonPayload, err = json.Marshal(tlsPolicy)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal TLS Policy JSON: %w", err)
-		}
-
-		// Send the payload to the Caddy API
-		_, err = sendRequest("POST", caddyAPITLSPoliciesBaseUrl, jsonPayload)
-		if err != nil {
-			return fmt.Errorf("Failed to add TLS policies to Caddy: %w", err)
-		}
-	}
-
-	jsonPayload, err := json.Marshal(routes)
+	// Marshal the route into JSON
+	jsonPayload, err := json.Marshal([]Route{route})
 	if err != nil {
-		return fmt.Errorf("Failed to marshal routes payload: %w", err)
+		return fmt.Errorf("failed to marshal route payload: %w", err)
 	}
 
 	// Send the payload to the Caddy API
 	_, err = sendRequest("POST", caddyAPIRoutesBaseUrl, jsonPayload)
 	if err != nil {
-		return fmt.Errorf("Failed to add routes to Caddy: %w", err)
+		return fmt.Errorf("failed to add %s route to Caddy: %w", serviceName, err)
 	}
 
+	return nil
+}
+
+func UnregisterCaddyService(serviceName, workspaceName string) error {
+	// Construct the URL for the specific service
+	url := fmt.Sprintf("http://localhost:2019/id/%s_%s", workspaceName, serviceName)
+
+	// Send a DELETE request to the Caddy API
+	if _, err := sendRequest("DELETE", url, nil); err != nil {
+		return fmt.Errorf("failed to unregister Caddy service '%s': %w", serviceName, err)
+	}
+
+	fmt.Printf("Successfully unregistered Caddy service: %s\n", serviceName)
+	return nil
+}
+
+func InstallTLSCerts(workspaceName, domain string) error {
+	caddyAPITLSBaseUrl := "http://localhost:2019/config/apps/tls/certificates/load_files/..."
+	caddyAPITLSPoliciesBaseUrl := "http://localhost:2019/config/apps/http/servers/srv0/tls_connection_policies/..."
+
+	// Define TLS policies and certificates
+	tlsPolicy := []TLSPolicy{
+		{
+			ID: fmt.Sprintf("%s_tlspolicy", workspaceName),
+			Match: TLSMatch{
+				SNI: []string{
+					fmt.Sprintf("*.%s", domain),
+				},
+			},
+			CertificateSelection: TLSCertificateSelection{
+				AnyTag: []string{workspaceName},
+			},
+		},
+	}
+
+	tlsLoad := []TLSFileLoad{
+		{
+			ID:          fmt.Sprintf("%s_tlscerts", workspaceName),
+			Certificate: fmt.Sprintf("/tls/%s/full-chain.pem", domain),
+			Key:         fmt.Sprintf("/tls/%s/private-key.pem", domain),
+			Tags:        []string{workspaceName},
+		},
+	}
+
+	// Send TLS certificates to Caddy
+	jsonPayload, err := json.Marshal(tlsLoad)
+	if err != nil {
+		return fmt.Errorf("failed to marshal TLS certificates payload: %w", err)
+	}
+
+	_, err = sendRequest("POST", caddyAPITLSBaseUrl, jsonPayload)
+	if err != nil {
+		return fmt.Errorf("failed to add TLS certificates to Caddy: %w", err)
+	}
+
+	// Send TLS policies to Caddy
+	jsonPayload, err = json.Marshal(tlsPolicy)
+	if err != nil {
+		return fmt.Errorf("failed to marshal TLS policies payload: %w", err)
+	}
+
+	_, err = sendRequest("POST", caddyAPITLSPoliciesBaseUrl, jsonPayload)
+	if err != nil {
+		return fmt.Errorf("failed to add TLS policies to Caddy: %w", err)
+	}
+
+	fmt.Println("TLS certificates and policies installed successfully!")
 	return nil
 }
 
@@ -191,22 +190,15 @@ func InitCaddy() error {
 	return nil
 }
 
-func DeleteCaddyRecords(gitopsName string, noIde bool) error {
-	urls := []string{
-		fmt.Sprintf("http://localhost:2019/id/%s_gitops", gitopsName),
-		fmt.Sprintf("http://localhost:2019/id/%s_tlspolicy", gitopsName),
-		fmt.Sprintf("http://localhost:2019/id/%s_tlscerts", gitopsName),
-	}
+func DeleteCaddyRecords(workspaceName string) error {
+	services := []string{"gitops", "editor", "tlspolicy", "tlscerts"}
 
-	if !noIde {
-		urls = append(urls, fmt.Sprintf("http://localhost:2019/id/%s_editor", gitopsName))
-	}
-
-	for _, url := range urls {
-		if _, err := sendRequest("DELETE", url, nil); err != nil {
-			return fmt.Errorf("failed to delete Caddy records: %w", err)
+	for _, service := range services {
+		if err := UnregisterCaddyService(service, workspaceName); err != nil {
+			return fmt.Errorf("failed to delete Caddy records for service '%s': %w", service, err)
 		}
 	}
+
 	return nil
 }
 
