@@ -845,6 +845,11 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 
 	// Get Bitswan Editor password from container
 	if !o.noIde {
+		fmt.Println("Downloading and installing editor...")
+		// Register GitOps service
+		if err := caddyapi.RegisterServiceWithCaddy("editor", workspaceName, o.domain, fmt.Sprintf("%s-editor:8079", workspaceName)); err != nil {
+			return fmt.Errorf("failed to register Editor service with caddy: %w", err)
+		}
 		// First, wait for the editor service to be ready by streaming logs
 		if err := dockercompose.WaitForEditorReady(workspaceName); err != nil {
 			panic(fmt.Errorf("failed to wait for editor to be ready: %w", err))

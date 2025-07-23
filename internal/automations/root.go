@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bitswan-space/bitswan-workspaces/internal/ansi"
+	"github.com/bitswan-space/bitswan-workspaces/internal/httpReq"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
 )
 
@@ -49,7 +50,7 @@ func (a *Automation) Remove() error {
 
 func SendAutomationRequest(method, url string, workspaceSecret string) (*http.Response, error) {
 	// Create a new GET request
-	req, err := http.NewRequest(method, url, nil)
+	req, err := httpReq.NewRequest(method, url, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
