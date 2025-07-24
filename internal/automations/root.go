@@ -98,8 +98,8 @@ func GetAutomations(workspaceName string) ([]Automation, error) {
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	// Check for 500 Internal Server Error
-	if resp.StatusCode == http.StatusInternalServerError && strings.TrimSpace(string(body)) == "Internal Server Error" {
+	// Check for 5xx Server Errors (workspace misbehaving)
+	if resp.StatusCode >= 500 && resp.StatusCode < 600 {
 		return nil, &WorkspaceMisbehavingError{
 			WorkspaceName: workspaceName,
 			StatusCode:    resp.StatusCode,
@@ -107,9 +107,22 @@ func GetAutomations(workspaceName string) ([]Automation, error) {
 		}
 	}
 
+	// Check for other non-200 status codes
+	if resp.StatusCode != http.StatusOK {
+		bodyStr := strings.TrimSpace(string(body))
+		if bodyStr == "" {
+			bodyStr = "(empty response)"
+		}
+		return nil, fmt.Errorf("HTTP request failed (status code: %d), response body: %s", resp.StatusCode, bodyStr)
+	}
+
 	err = json.Unmarshal(body, &automations)
 	if err != nil {
-		return nil, fmt.Errorf("error decoding JSON: %w. Response body: %s", err, string(body))
+		bodyStr := strings.TrimSpace(string(body))
+		if bodyStr == "" {
+			bodyStr = "(empty response)"
+		}
+		return nil, fmt.Errorf("error decoding JSON (status code: %d): %w. Response body: %s", resp.StatusCode, err, bodyStr)
 	}
 
 	// Set the Workspace field for each automation
