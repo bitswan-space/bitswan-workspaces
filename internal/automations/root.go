@@ -60,13 +60,8 @@ func SendAutomationRequest(method, url string, workspaceSecret string) (*http.Re
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", "Bearer "+workspaceSecret)
 
-	// Create HTTP client and send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
-	}
-	return resp, nil
+	// Use ExecuteRequestWithLocalhostResolution for .localhost domains
+	return httpReq.ExecuteRequestWithLocalhostResolution(req)
 }
 
 // GetAutomations fetches the list of automations for a given workspace
