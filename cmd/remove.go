@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -164,8 +165,23 @@ func removeGitops(workspaceName string) error {
 
 	// Parse the response
 	automationSet, err := automations.GetListAutomations(workspaceName)
+	var skipAutomationRemoval bool
 	if err != nil {
-		return fmt.Errorf("error retrieving automation list: %w", err)
+		// Check if this is a WorkspaceMisbehavingError
+		var misbehavingErr *automations.WorkspaceMisbehavingError
+		if errors.As(err, &misbehavingErr) {
+			fmt.Printf("This workspace seems to be misbehaving. Cannot detect which automations are running within it. Would you like to stop it anyway with the risk of leaving some orphaned automations running? [y/N]: ")
+			var continueAnyway string
+			fmt.Scanln(&continueAnyway)
+			if continueAnyway != "y" && continueAnyway != "yes" {
+				fmt.Println("Remove cancelled.")
+				return nil
+			}
+			skipAutomationRemoval = true
+			automationSet = nil // Clear the set since we couldn't fetch it
+		} else {
+			return fmt.Errorf("error retrieving automation list: %w", err)
+		}
 	}
 
 	fmt.Printf("Are you sure you want to remove %s? (yes/no): \n", workspaceName)
@@ -176,14 +192,20 @@ func removeGitops(workspaceName string) error {
 	}
 
 	// 2. Remove the automations from the server
-	fmt.Println("Removing automations...")
-	for _, automation := range automationSet {
-		err := automation.Remove()
-		if err != nil {
-			return fmt.Errorf("error removing automation %s: %w", automation.Name, err)
+	if !skipAutomationRemoval && len(automationSet) > 0 {
+		fmt.Println("Removing automations...")
+		for _, automation := range automationSet {
+			err := automation.Remove()
+			if err != nil {
+				return fmt.Errorf("error removing automation %s: %w", automation.Name, err)
+			}
 		}
+		fmt.Println("Automations removed successfully.")
+	} else if skipAutomationRemoval {
+		fmt.Println("Skipping automation removal due to workspace misbehavior.")
+	} else {
+		fmt.Println("No automations to remove.")
 	}
-	fmt.Println("Automations removed successfully.")
 
 	// 3. Remove docker container and volume
 	fmt.Println("Removing docker containers and volumes...")

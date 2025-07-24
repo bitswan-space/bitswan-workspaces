@@ -5,12 +5,24 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bitswan-space/bitswan-workspaces/internal/ansi"
 	"github.com/bitswan-space/bitswan-workspaces/internal/httpReq"
 	"github.com/bitswan-space/bitswan-workspaces/internal/config"
 )
+
+// WorkspaceMisbehavingError is a custom error type for when the workspace API returns 500 errors
+type WorkspaceMisbehavingError struct {
+	WorkspaceName string
+	StatusCode    int
+	ResponseBody  string
+}
+
+func (e *WorkspaceMisbehavingError) Error() string {
+	return fmt.Sprintf("workspace %s is misbehaving (status code: %d, response: %s)", e.WorkspaceName, e.StatusCode, e.ResponseBody)
+}
 
 type Automation struct {
 	ContainerID  string `json:"container_id"`
@@ -84,6 +96,15 @@ func GetAutomations(workspaceName string) ([]Automation, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	// Check for 500 Internal Server Error
+	if resp.StatusCode == http.StatusInternalServerError && strings.TrimSpace(string(body)) == "Internal Server Error" {
+		return nil, &WorkspaceMisbehavingError{
+			WorkspaceName: workspaceName,
+			StatusCode:    resp.StatusCode,
+			ResponseBody:  string(body),
+		}
 	}
 
 	err = json.Unmarshal(body, &automations)
