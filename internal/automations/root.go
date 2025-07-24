@@ -88,7 +88,7 @@ func GetAutomations(workspaceName string) ([]Automation, error) {
 
 	err = json.Unmarshal(body, &automations)
 	if err != nil {
-		return nil, fmt.Errorf("error decoding JSON: %w", err)
+		return nil, fmt.Errorf("error decoding JSON: %w. Response body: %s", err, string(body))
 	}
 
 	// Set the Workspace field for each automation
