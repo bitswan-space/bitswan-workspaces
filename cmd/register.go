@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -24,21 +25,38 @@ type DeviceAuthorizationResponse struct {
 }
 
 type TokenResponse struct {
-	AccessToken        string `json:"access_token"`
-	ExpiresIn          int    `json:"expires_in"`
-	RefreshExpiresIn   int    `json:"refresh_expires_in"`
-	RefreshToken       string `json:"refresh_token"`
-	TokenType          string `json:"token_type"`
-	NotBeforePolicy    int    `json:"not-before-policy"`
-	SessionState       string `json:"session_state"`
-	Scope              string `json:"scope"`
-	AutomationServerId string `json:"automation_server_id"`
+	AccessToken      string `json:"access_token"`
+	ExpiresIn        int    `json:"expires_in"`
+	RefreshExpiresIn int    `json:"refresh_expires_in"`
+	RefreshToken     string `json:"refresh_token"`
+	TokenType        string `json:"token_type"`
+	NotBeforePolicy  int    `json:"not-before-policy"`
+	SessionState     string `json:"session_state"`
+	Scope            string `json:"scope"`
 }
 
 type AutomationServerYaml struct {
 	AOCUrl             string `yaml:"aoc_url"`
 	AutomationServerId string `yaml:"automation_server_id"`
 	AccessToken        string `yaml:"access_token"`
+}
+
+type ApiListResponse[T any] struct {
+	Status   string  `json:"status"`            // "success" or "error"
+	Message  *string `json:"message,omitempty"` // optional
+	Count    int     `json:"count"`
+	Next     *string `json:"next"`     // can be null
+	Previous *string `json:"previous"` // can be null
+	Results  []T     `json:"results"`
+}
+
+type Org struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type AutomationServer struct {
+	AutomationServerId string `json:"automation_server_id"`
 }
 
 func newRegisterCmd() *cobra.Command {
@@ -63,7 +81,7 @@ func newRegisterCmd() *cobra.Command {
 			}
 
 			var deviceAuthorizationResponse DeviceAuthorizationResponse
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 			err = json.Unmarshal([]byte(body), &deviceAuthorizationResponse)
 			if err != nil {
 				return fmt.Errorf("error decoding JSON: %w", err)
@@ -72,7 +90,8 @@ func newRegisterCmd() *cobra.Command {
 			fmt.Printf("Please visit the following URL to authorize the device:\n%s\n", deviceAuthorizationResponse.VerificationURIComplete)
 
 			for {
-				resp, err = sendRequest("GET", fmt.Sprintf("%s/api/cli/register?device_code=%s&server_name=%s", aocUrl, deviceAuthorizationResponse.DeviceCode, serverName), nil, "")
+				resp, err = sendRequest("GET", fmt.Sprintf(
+					"%s/api/cli/register?device_code=%s", aocUrl, deviceAuthorizationResponse.DeviceCode), nil, "")
 				if err != nil {
 					return fmt.Errorf("error sending request: %w", err)
 				}
@@ -85,7 +104,7 @@ func newRegisterCmd() *cobra.Command {
 
 				// Parse error response
 				var errResp map[string]interface{}
-				body, _ = ioutil.ReadAll(resp.Body)
+				body, _ = io.ReadAll(resp.Body)
 				if err := json.Unmarshal(body, &errResp); err != nil {
 					return fmt.Errorf("error parsing error response: %v", err)
 				}
@@ -106,13 +125,94 @@ func newRegisterCmd() *cobra.Command {
 			}
 
 			var tokenResponse TokenResponse
-			body, _ = ioutil.ReadAll(resp.Body)
+			body, _ = io.ReadAll(resp.Body)
 			err = json.Unmarshal([]byte(body), &tokenResponse)
 			if err != nil {
 				return fmt.Errorf("error decoding JSON: %w", err)
 			}
 
-			saveAutomationServerYaml(aocUrl, tokenResponse.AutomationServerId, tokenResponse.AccessToken)
+			resp, err = sendRequest("GET", fmt.Sprintf("%s/api/orgs", aocUrl), nil, tokenResponse.AccessToken)
+			if err != nil {
+				return fmt.Errorf("error sending request: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				return fmt.Errorf("failed to get user organizations: %s", resp.Status)
+			}
+
+			var orgListResponse ApiListResponse[Org]
+			body, _ = io.ReadAll(resp.Body)
+			err = json.Unmarshal([]byte(body), &orgListResponse)
+			if err != nil {
+				return fmt.Errorf("error decoding JSON: %w", err)
+			}
+
+			if orgListResponse.Count == 0 {
+				return fmt.Errorf("no organizations found")
+			}
+
+			orgs := []string{}
+			for _, org := range orgListResponse.Results {
+				orgs = append(orgs, org.Name)
+			}
+
+			var orgId string
+			if orgListResponse.Count > 1 {
+				prompt := promptui.Select{
+					Label: "You belong to multiple organizations. Select an Organization",
+					Items: orgs,
+				}
+
+				_, result, err := prompt.Run()
+				if err != nil {
+					return fmt.Errorf("error selecting organization: %w", err)
+				}
+
+				for _, org := range orgListResponse.Results {
+					if org.Name == result {
+						orgId = org.ID
+						break
+					}
+				}
+			} else {
+				orgId = orgListResponse.Results[0].ID
+			}
+
+			payload, err := json.Marshal(map[string]interface{}{
+				"keycloak_org_id": orgId,
+				"name":            serverName,
+			})
+			if err != nil {
+				return fmt.Errorf("error marshalling payload: %w", err)
+			}
+
+			resp, err = sendRequest(
+				"POST", fmt.Sprintf("%s/api/automation-servers/", aocUrl), payload, tokenResponse.AccessToken)
+			if err != nil {
+				return fmt.Errorf("error sending request: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusCreated {
+				return fmt.Errorf("failed to register automation server: %s", resp.Status)
+			}
+
+			var automationServer AutomationServer
+			body, _ = io.ReadAll(resp.Body)
+			err = json.Unmarshal([]byte(body), &automationServer)
+			if err != nil {
+				return fmt.Errorf("error decoding JSON: %w", err)
+			}
+
+			err = saveAutomationServerYaml(
+				aocUrl,
+				automationServer.AutomationServerId,
+				tokenResponse.AccessToken,
+			)
+			if err != nil {
+				return fmt.Errorf("error saving automation server yaml: %w", err)
+			}
 
 			fmt.Printf("Successfully registered workspace as automation server. You can close the browser tab.\n")
 			fmt.Println("Access token, AOC BE URL, and Automation server ID have been saved to ~/.config/bitswan/aoc/automation_server.yaml.")
