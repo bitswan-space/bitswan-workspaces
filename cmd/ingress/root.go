@@ -12,6 +12,8 @@ func NewIngressCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInitCmd())
+	cmd.AddCommand(newAddRouteCmd())
+	cmd.AddCommand(newRemoveRouteCmd())
 
 	return cmd
 } 
