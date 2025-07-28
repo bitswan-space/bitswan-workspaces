@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,7 +11,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/bitswan-space/bitswan-workspaces/cmd/automation"
+	"github.com/bitswan-space/bitswan-workspaces/internal/automations"
 	"github.com/bitswan-space/bitswan-workspaces/internal/caddyapi"
 	"github.com/spf13/cobra"
 )
@@ -83,12 +84,12 @@ func deleteDockerImage(image string) error {
 }
 
 // Function for deleting entries from /etc/hosts
-func deleteHostsEntry(workspaceName string) {
+func deleteHostsEntry(workspaceName string) error {
 	hostsFilePath := "/etc/hosts"
 	input, err := os.ReadFile(hostsFilePath)
 	if err != nil {
 		fmt.Printf(yellow+"failed to read /etc/hosts: %v\n"+reset, err)
-		return
+		return nil
 	}
 
 	lines := strings.Split(string(input), "\n")
@@ -111,7 +112,7 @@ func deleteHostsEntry(workspaceName string) {
 	// No entries found to remove
 	if !found {
 		fmt.Println(yellow + "No entries found in /etc/hosts to remove." + reset)
-		return
+		return nil
 	}
 
 	// Filter out the lines that match the entries
@@ -136,8 +137,9 @@ func deleteHostsEntry(workspaceName string) {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		fmt.Printf(yellow+"failed to write to /etc/hosts with sudo: %v\n"+reset, err)
-		return
+		return nil
 	}
+	return nil
 }
 
 func removeGitops(workspaceName string) error {
@@ -152,19 +154,34 @@ func removeGitops(workspaceName string) error {
 	metadataPath := gitopsPath + "/metadata.yaml"
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error reading metadata file: %w", err)
 	}
 
 	var metadata Metadata
 	err = yaml.Unmarshal(data, &metadata)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error unmarshalling metadata: %w", err)
 	}
 
 	// Parse the response
-	automations, err := automation.GetListAutomations(workspaceName)
+	automationSet, err := automations.GetListAutomations(workspaceName)
+	var skipAutomationRemoval bool
 	if err != nil {
-		fmt.Println("Error:", err)
+		// Check if this is a WorkspaceMisbehavingError
+		var misbehavingErr *automations.WorkspaceMisbehavingError
+		if errors.As(err, &misbehavingErr) {
+			fmt.Printf("This workspace seems to be misbehaving. Cannot detect which automations are running within it. Would you like to stop it anyway with the risk of leaving some orphaned automations running? [y/N]: ")
+			var continueAnyway string
+			fmt.Scanln(&continueAnyway)
+			if continueAnyway != "y" && continueAnyway != "yes" {
+				fmt.Println("Remove cancelled.")
+				return nil
+			}
+			skipAutomationRemoval = true
+			automationSet = nil // Clear the set since we couldn't fetch it
+		} else {
+			return fmt.Errorf("error retrieving automation list: %w", err)
+		}
 	}
 
 	fmt.Printf("Are you sure you want to remove %s? (yes/no): \n", workspaceName)
@@ -175,16 +192,22 @@ func removeGitops(workspaceName string) error {
 	}
 
 	// 2. Remove the automations from the server
-	fmt.Println("Removing automations...")
-	for _, a := range automations {
-		err := automation.RemoveAutomation(workspaceName, a.DeploymentID)
-		if err != nil {
-			return fmt.Errorf("error removing automation %s: %w", a.Name, err)
+	if !skipAutomationRemoval && len(automationSet) > 0 {
+		fmt.Println("Removing automations...")
+		for _, automation := range automationSet {
+			err := automation.Remove()
+			if err != nil {
+				return fmt.Errorf("error removing automation %s: %w", automation.Name, err)
+			}
 		}
+		fmt.Println("Automations removed successfully.")
+	} else if skipAutomationRemoval {
+		fmt.Println("Skipping automation removal due to workspace misbehavior.")
+	} else {
+		fmt.Println("No automations to remove.")
 	}
-	fmt.Println("Automations removed successfully.")
 
-	// 2. Remove docker container and volume
+	// 3. Remove docker container and volume
 	fmt.Println("Removing docker containers and volumes...")
 	workspacesFolder := filepath.Join(bitswanPath, "workspaces")
 	dockerComposePath := filepath.Join(workspacesFolder, workspaceName, "deployment")
@@ -194,35 +217,35 @@ func removeGitops(workspaceName string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to execute: %w", err)
+		return fmt.Errorf("failed to remove docker containers and volumes: %w", err)
 	}
 	fmt.Println("Docker containers and volumes removed successfully.")
 
-	// 3. Remove images used by docker-compose
+	// 4. Remove images used by docker-compose
 	fmt.Println("Removing images used by docker-compose...")
 	dockerComposeFilePath := filepath.Join(dockerComposePath, "docker-compose.yml")
 	data, err = os.ReadFile(dockerComposeFilePath)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error reading docker-compose file: %w", err)
 	}
 
 	var compose Compose
 	err = yaml.Unmarshal(data, &compose)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error unmarshalling docker-compose file: %w", err)
 	}
 
 	for _, service := range compose.Services {
 		if service.Image != "" {
 			exists, err := checkContainerExists(service.Image)
 			if err != nil {
-				fmt.Println("Error checking images in container:", err)
+				return fmt.Errorf("error checking if image exists: %w", err)
 			}
 
 			if !exists {
 				err = deleteDockerImage(service.Image)
 				if err != nil {
-					fmt.Println("Error deleting image:", err)
+					return fmt.Errorf("error deleting docker image %s: %w", service.Image, err)
 				}
 				fmt.Println("Images removed successfully.")
 			} else {
@@ -231,31 +254,32 @@ func removeGitops(workspaceName string) error {
 		}
 	}
 
-	// 4. Remove the gitops folder
+	// 5. Remove the gitops folder
 	fmt.Println("Removing gitops folder...")
 	cmd = exec.Command("rm", "-r", workspaceName)
 	cmd.Dir = workspacesFolder
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to execute: %w", err)
+		return fmt.Errorf("failed to remove gitops folder: %w", err)
 	}
 	fmt.Println("GitOps folder removed successfully.")
 
-	// 5. Remove caddy files
+	// 6. Remove caddy files
 	fmt.Println("Removing caddy files...")
-	noIde := metadata.EditorURL == nil
-	err = caddyapi.DeleteCaddyRecords(workspaceName, noIde)
+	err = caddyapi.DeleteCaddyRecords(workspaceName)
 	if err != nil {
 		return fmt.Errorf("error removing caddy files: %w", err)
 	}
 	fmt.Println("Caddy files removed successfully.")
 
-	// 6. Remove entries from /etc/hosts
+	// 7. Remove entries from /etc/hosts
 	fmt.Println("Removing entries from /etc/hosts...")
-	deleteHostsEntry(workspaceName)
+	err = deleteHostsEntry(workspaceName)
+	if err != nil {
+		return fmt.Errorf("error removing entries from /etc/hosts: %w", err)
+	}
 	fmt.Println("Entries removed from /etc/hosts successfully.")
 
 	return nil
-
 }
