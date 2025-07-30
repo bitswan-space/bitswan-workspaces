@@ -3,7 +3,7 @@ module github.com/bitswan-space/bitswan-workspaces
 go 1.21
 
 require (
-	github.com/BurntSushi/toml v1.3.2
+	github.com/BurntSushi/toml v1.5.0
 	github.com/daixiang0/gci v0.13.6
 	github.com/dchest/uniuri v1.2.0
 	github.com/go-critic/go-critic v0.11.0
