@@ -48,9 +48,9 @@ func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEdit
 		"hostname": workspaceName + "-gitops",
 		"networks": []string{"bitswan_network"},
 		"volumes": []string{
-			gitopsPath + "/gitops:/gitops/gitops",
-			gitopsPath + "/secrets:/gitops/secrets",
-			sshDir + ":/root/.ssh",
+			gitopsPath + "/gitops:/gitops/gitops:z",
+			gitopsPath + "/secrets:/gitops/secrets:z",
+			sshDir + ":/root/.ssh:z",
 			"/var/run/docker.sock:/var/run/docker.sock",
 		},
 		"environment": []string{
@@ -74,8 +74,8 @@ func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEdit
 
 	if hostOs == WindowsMac {
 		gitopsVolumes := []string{
-			gitConfig + ":/root/.gitconfig",
-			gitopsPath + "/workspace/.git:/workspace-repo/.git",
+			gitConfig + ":/root/.gitconfig:z",
+			gitopsPath + "/workspace/.git:/workspace-repo/.git:z",
 		}
 
 		gitopsService["volumes"] = append(gitopsService["volumes"].([]string), gitopsVolumes...)
@@ -122,11 +122,11 @@ func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEdit
 				"BITSWAN_GITOPS_DIR=/home/coder/workspace",
 			},
 			"volumes": []string{
-				gitopsPath + "/workspace:/home/coder/workspace/workspace",
-				gitopsPath + "/secrets:/home/coder/workspace/secrets",
-				gitopsPath + "/codeserver-config:/home/coder/.config/code-server/",
+				gitopsPath + "/workspace:/home/coder/workspace/workspace:z",
+				gitopsPath + "/secrets:/home/coder/workspace/secrets:z",
+				gitopsPath + "/codeserver-config:/home/coder/.config/code-server/:z",
 				filepath.Dir(filepath.Dir(gitopsPath)) + "/bitswan-src/examples:/home/coder/workspace/examples:ro",
-				sshDir + ":/home/coder/.ssh",
+				sshDir + ":/home/coder/.ssh:z",
 			},
 		}
 
@@ -150,10 +150,10 @@ func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEdit
 
 func CreateCaddyDockerComposeFile(caddyPath, domain string) (string, error) {
 	caddyVolumes := []string{
-		caddyPath + "/Caddyfile:/etc/caddy/Caddyfile",
-		caddyPath + "/data:/data",
-		caddyPath + "/config:/config",
-		caddyPath + "/certs:/tls",
+		caddyPath + "/Caddyfile:/etc/caddy/Caddyfile:z",
+		caddyPath + "/data:/data:z",
+		caddyPath + "/config:/config:z",
+		caddyPath + "/certs:/tls:z",
 	}
 
 	// Construct the docker-compose data structure
