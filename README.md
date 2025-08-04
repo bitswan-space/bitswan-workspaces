@@ -1,7 +1,7 @@
-# bitswan-workspaces
+# Bitswan Automation Server
 
 <div align="center">
-CLI app for managing bitswan automation server and workspace deployments
+CLI app and daemon for managing bitswan automation server and workspace deployments
 <br>
 <br>
 <img src="https://github.com/bitswan-space/bitswan-workspaces/actions/workflows/test.yml/badge.svg" alt="drawing"/>
