@@ -150,12 +150,10 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 	}
 
 
-	oauthConfig := oauth.GetOauthConfig(workspaceName)
-	if(oauthConfig == nil) {
-		fmt.Println("No OAuth config found, skipping...")
-		} else {
-			fmt.Println("OAuth config found")
-		}		
+	oauthConfig, err := oauth.GetOauthConfig(workspaceName)
+	if err != nil {
+		return fmt.Errorf("failed to get OAuth config: %w", err)
+	}
 		
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == nil

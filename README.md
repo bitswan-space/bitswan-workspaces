@@ -111,14 +111,18 @@ bitswan workspace list --long --passwords
 You can put an editor behind a proxy like this
 
 ```sh
-bitswan workspace init dev-workspace \
-  --domain bitswan.localhost \
-  --oauth-issuer-url "<your-oauth-issuer-url>/realms/<yourrealm>" \
-  --oauth-client-id "<your-oauth=client-id>" \
-  --oauth-client-secret "<your-client-secret>" \
-  --oauth-cookie-secret "<your-cookie-secret>" \
-  --oauth-email-domains "<you can use * to allow all domains>" \ 
-  --oauth-allowed-groups "<your-allowed-groups>" \
+bitswan workspace init --domain=bitswan.localhost --mkcerts dev-workspace --oauth-config <json-file>
+```
+Example of json file
+```json
+{
+  "oauth_issuer_url": "<your-oauth-issuer-url>/realms/<yourrealm>",
+  "oauth_client_id": "<your-oauth=client-id>",
+  "oauth_client_secret": "<your-client-secret>",
+  "oauth_cookie_secret": "<your-cookie-secret>",
+  "oauth_email_domains": ["<you can use * to allow all domains>"],
+  "oauth_allowed_groups": ["<your-allowed-groups>"]
+}
 ```
 
 

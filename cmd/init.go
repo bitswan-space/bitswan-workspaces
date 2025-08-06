@@ -37,13 +37,7 @@ type initOptions struct {
 	local              bool
 	gitopsImage        string
 	editorImage        string
-	withOauthProxy     bool
-	oauthIssuerURL     string
-	oauthClientID      string
-	oauthClientSecret  string
-	oauthCookieSecret  string
-	oauthEmailDomains  []string
-	oauthAllowedGroups []string
+	oauthConfigFile    string
 }
 
 type DockerNetwork struct {
@@ -94,14 +88,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.local, "local", false, "Automatically use flag --set-hosts and --mkcerts. If no domain is set defaults to bs-<workspacename>.localhost")
 	cmd.Flags().StringVar(&o.gitopsImage, "gitops-image", "", "Custom image for the gitops")
 	cmd.Flags().StringVar(&o.editorImage, "editor-image", "", "Custom image for the editor")
-	cmd.Flags().BoolVar(&o.withOauthProxy, "with-oauth-proxy", false, "Enable OAuth proxy")
-	cmd.Flags().StringVar(&o.oauthIssuerURL, "oauth-issuer-url", "", "OAuth issuer URL")
-	cmd.Flags().StringVar(&o.oauthClientID, "oauth-client-id", "", "OAuth client ID")
-	cmd.Flags().StringVar(&o.oauthClientSecret, "oauth-client-secret", "", "OAuth client secret")
-	cmd.Flags().StringVar(&o.oauthCookieSecret, "oauth-cookie-secret", "", "OAuth cookie secret")
-	cmd.Flags().StringSliceVar(&o.oauthEmailDomains, "oauth-email-domains", []string{}, "OAuth email domains")
-	cmd.Flags().StringSliceVar(&o.oauthAllowedGroups, "oauth-allowed-groups", []string{}, "OAuth allowed groups")
-
+	cmd.Flags().StringVar(&o.oauthConfigFile, "oauth-config", "", "OAuth config file")
 	return cmd
 }
 
@@ -435,24 +422,12 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	}
 
 	var oauthConfig *oauth.Config
-	if o.withOauthProxy {
-		oauthConfig = &oauth.Config{
-			Enabled:       o.withOauthProxy,
-			ClientId:      o.oauthClientID,
-			ClientSecret:  o.oauthClientSecret,
-			IssuerUrl:     o.oauthIssuerURL,
-			Scopes:        strings.Join(o.oauthAllowedGroups, ","),
-			CookieSecret:  o.oauthCookieSecret,
-			EmailDomains:  o.oauthEmailDomains,
-			AllowedGroups: o.oauthAllowedGroups,
+	if o.oauthConfigFile != "" {
+		oauthConfig, err = oauth.GetInitOauthConfig(o.oauthConfigFile)
+		if err != nil {
+			return fmt.Errorf("failed to get OAuth config: %w", err)
 		}
-	}
-
-	//check if all required fields are set
-	if oauthConfig != nil {
-		if oauthConfig.ClientId == "" || oauthConfig.ClientSecret == "" || oauthConfig.IssuerUrl == "" || oauthConfig.CookieSecret == "" {
-			return fmt.Errorf("all required fields are not set")
-		}
+		fmt.Println("OAuth config read successfully!")
 	}
 
 	// Init shared Caddy if not exists
@@ -633,7 +608,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create secrets directory: %w", err)
 	}
 
-	if oauthConfig != nil && oauthConfig.Enabled {
+	if oauthConfig != nil {
 		oauthConfigFile := secretsDir + "/oauth-config.yaml"
 		oauthConfigYaml, err := yaml.Marshal(oauthConfig)
 		if err != nil {
@@ -905,7 +880,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 		fmt.Println("------------BITSWAN EDITOR INFO------------")
 		fmt.Printf("Bitswan Editor URL: https://%s-editor.%s\n", workspaceName, o.domain)
 
-		if oauthConfig == nil || !oauthConfig.Enabled {
+		if oauthConfig == nil {
 			editorPassword, err := dockercompose.GetEditorPassword(workspaceName)
 			if err != nil {
 				return fmt.Errorf("failed to get Bitswan Editor password: %w", err)
@@ -919,7 +894,7 @@ func (o *initOptions) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("GitOps URL: https://%s-gitops.%s\n", workspaceName, o.domain)
 	fmt.Printf("GitOps Secret: %s\n", token)
 
-	if oauthConfig != nil && oauthConfig.Enabled {
+	if oauthConfig != nil {
 		fmt.Printf("OAuth is enabled for the Editor.\n")
 	}
 

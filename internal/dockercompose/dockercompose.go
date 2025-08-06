@@ -131,7 +131,7 @@ func CreateDockerComposeFile(gitopsPath, workspaceName, gitopsImage, bitswanEdit
 			},
 		}
 
-		if oauthConfig != nil && oauthConfig.Enabled {
+		if oauthConfig != nil {
 			oauthEnvVars := []string{
 				"OAUTH_ENABLED=true", // This is the trigger entrypoint script
 				"OAUTH2_PROXY_PROVIDER=keycloak-oidc",
