@@ -16,6 +16,8 @@ CLI app and daemon for managing bitswan automation server and workspace deployme
 <!--ts-->
    * [bitswan-workspaces](#bitswan-workspaces)
    * [Features](#features)
+   * [Prerequisites](#prerequisites)
+   * [Installation](#installation) 
    * [Contribute](#contribute)
 
 <!--te-->
@@ -24,6 +26,13 @@ CLI app and daemon for managing bitswan automation server and workspace deployme
 - Automatically set up independent bitswan workspaces deployments.
 - Deployments can either connect to the bitswan.space SaaS, use the on prem bitswan management tools or operate completely independently
 
+
+Prerequisites
+--------------
+Before installation, make sure you have installed `Docker` and `Docker compose`. Installation guides can be found on these links :
+
+- [Docker](https://docs.docker.com/engine/install/)
+- [Docker compose](https://docs.docker.com/compose/install/)
 
 # Installation
 ## Linux / WSL
