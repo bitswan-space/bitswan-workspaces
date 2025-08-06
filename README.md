@@ -108,6 +108,20 @@ You can get the password to the editor using the command:
 bitswan workspace list --long --passwords
 ```
 
+You can put an editor behind a proxy like this
+
+```sh
+bitswan workspace init dev-workspace \
+  --domain bitswan.localhost \
+  --oauth-issuer-url "<your-oauth-issuer-url>/realms/<yourrealm>" \
+  --oauth-client-id "<your-oauth=client-id>" \
+  --oauth-client-secret "<your-client-secret>" \
+  --oauth-cookie-secret "<your-cookie-secret>" \
+  --oauth-email-domains "<you can use * to allow all domains>" \ 
+  --oauth-allowed-groups "<your-allowed-groups>" \
+```
+
+
 ## Remote git repository
 
 If you wanna connect and persist your pipelines and GitOps configuration in remote git repository you can use `--remote` flag to specify your repository. `main` branch will be used to store pipelines code and each workspace will create it's own branch (e.g. `my-workspace`) to store their configurations.

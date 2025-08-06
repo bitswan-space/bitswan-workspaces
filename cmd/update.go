@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/bitswan-space/bitswan-workspaces/internal/dockercompose"
+	"github.com/bitswan-space/bitswan-workspaces/internal/oauth"
 	"github.com/bitswan-space/bitswan-workspaces/internal/dockerhub"
 	"github.com/spf13/cobra"
 )
@@ -148,9 +149,17 @@ func updateGitops(workspaceName string, o *updateOptions) error {
 		aocEnvVars = append(aocEnvVars, "BITSWAN_AOC_TOKEN="+automationServerTokenResponse.Token)
 	}
 
+
+	oauthConfig := oauth.GetOauthConfig(workspaceName)
+	if(oauthConfig == nil) {
+		fmt.Println("No OAuth config found, skipping...")
+		} else {
+			fmt.Println("OAuth config found")
+		}		
+		
 	// Rewrite the docker-compose file
 	noIde := metadata.EditorURL == nil
-	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, workspaceName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde, mqttEnvVars, aocEnvVars)
+	compose, _, err := dockercompose.CreateDockerComposeFile(gitopsConfig, workspaceName, gitopsImage, bitswanEditorImage, metadata.Domain, noIde, mqttEnvVars, aocEnvVars, oauthConfig)
 	if err != nil {
 		panic(fmt.Errorf("failed to create docker-compose file: %w", err))
 	}
