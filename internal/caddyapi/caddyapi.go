@@ -293,6 +293,23 @@ func RemoveRoute(hostname string) error {
 	return nil
 }
 
+// ListRoutes retrieves and lists all current routes from Caddy
+func ListRoutes() ([]Route, error) {
+	url := "http://localhost:2019/config/apps/http/servers/srv0/routes"
+	
+	responseBody, err := sendRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get routes from Caddy API: %w", err)
+	}
+	
+	var routes []Route
+	if err := json.Unmarshal(responseBody, &routes); err != nil {
+		return nil, fmt.Errorf("failed to parse routes response: %w", err)
+	}
+	
+	return routes, nil
+}
+
 func sendRequest(method, url string, payload []byte) ([]byte, error) {
 	client := &http.Client{}
 
@@ -313,7 +330,7 @@ func sendRequest(method, url string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("Caddy API returned status code %d for DELETE request", resp.StatusCode)
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("Caddy API returned status code %d", resp.StatusCode)
 	}
 
